@@ -125,7 +125,7 @@ A3API a3_DemoState *a3test_load()
 //	demoState->verticalAxis = 1;
 
 	// enable asset streaming between loads
-	demoState->streaming = 1;
+	//demoState->streaming = 1;
 
 
 	// set default GL state

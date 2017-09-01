@@ -553,6 +553,13 @@ void a3demo_initScene(a3_DemoState *demoState)
 	// other scene objects
 	demoState->earthObject->position.x = 8.0f;
 	demoState->teapotObject->position.x = 0.0f;
+
+	// lab1 moving object vars
+	demoState->teapotRot = -10;
+	demoState->earthRot = -10;
+	demoState->earthTilt = 23.5f;
+	demoState->earthOrbit = -10;
+	demoState->earthOrbitDistance = 10;
 }
 
 
@@ -640,6 +647,8 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	//	- earth rotates counter-clockwise about axis
 	//	- earth orbits counter-clockwise about teapot's position
 	//	- yes, the sun is a teapot
+
+	a3demo_rotateSceneObject(demoState->teapotObject, 10, (float)dt * demoState->teapotRot * -1, 0, 0);
 
 
 	// controls

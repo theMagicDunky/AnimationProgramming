@@ -123,11 +123,11 @@ extern "C"
 
 		// ****
 		// add variables to make things move
-		//	- teapot rotation
-		//	- earth rotation
-		//	- earth tilt
-		//	- earth orbit
-		//	- earth orbit distance
+		int teapotRot;			//	- teapot rotation
+		int earthRot;			//	- earth rotation
+		float earthTilt;			//	- earth tilt
+		int earthOrbit;			//	- earth orbit
+		int earthOrbitDistance;	//	- earth orbit distance
 
 
 		//---------------------------------------------------------------------
