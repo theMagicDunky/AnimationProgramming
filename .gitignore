@@ -1,5 +1,4 @@
 #git ignore
-*.hg*
 *.merge*
 *.orig
 *.resolve
