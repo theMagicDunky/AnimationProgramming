@@ -648,8 +648,10 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	//	- earth orbits counter-clockwise about teapot's position
 	//	- yes, the sun is a teapot
 
-	a3demo_rotateSceneObject(demoState->teapotObject, 10, (float)dt * demoState->teapotRot * -1, 0, 0);
-
+	a3demo_rotateSceneObject(demoState->teapotObject, -.5f, 0, (float)dt * demoState->teapotRot, 0);
+	
+	a3demo_rotateSceneObject(demoState->earthObject, -20, 0, 0, (float)dt * demoState->earthRot);
+	a3demo_moveSceneObject(demoState->earthObject, demoState->earthOrbit, demoState->earthOrbitDistance, demoState->earthOrbitDistance, 0);
 
 	// controls
 	
