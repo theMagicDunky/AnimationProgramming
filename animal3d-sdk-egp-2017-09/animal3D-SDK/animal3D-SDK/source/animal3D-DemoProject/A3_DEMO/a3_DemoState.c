@@ -555,10 +555,10 @@ void a3demo_initScene(a3_DemoState *demoState)
 	demoState->teapotObject->position.x = 0.0f;
 
 	// lab1 moving object vars
-	demoState->teapotRot = -10;
-	demoState->earthRot = -10;
+	demoState->teapotRot = 10;
+	demoState->earthRot = 100;
 	demoState->earthTilt = 23.5f;
-	demoState->earthOrbit = -10;
+	demoState->earthOrbit = 10;
 	demoState->earthOrbitDistance = 10;
 }
 
@@ -648,10 +648,18 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	//	- earth orbits counter-clockwise about teapot's position
 	//	- yes, the sun is a teapot
 
-	a3demo_rotateSceneObject(demoState->teapotObject, -.5f, 0, (float)dt * demoState->teapotRot, 0);
+	demoState->teapotObject->euler.y += demoState->teapotRot * (float)dt;
+	if (demoState->teapotObject->euler.y >= 360)
+		demoState->teapotObject->euler.y -= 360;
+
+	demoState->earthObject->euler.y = demoState->earthTilt;
+
+	demoState->earthObject->euler.z += demoState->earthRot * (float)dt;
+	if (demoState->earthObject->euler.z >= 360)
+		demoState->earthObject->euler.z -= 360;
 	
-	a3demo_rotateSceneObject(demoState->earthObject, -20, 0, 0, (float)dt * demoState->earthRot);
-	a3demo_moveSceneObject(demoState->earthObject, demoState->earthOrbit, demoState->earthOrbitDistance, demoState->earthOrbitDistance, 0);
+	demoState->earthObject->position.x = p3cosd(demoState->teapotObject->euler.y * demoState->earthOrbit) * demoState->earthOrbitDistance;
+	demoState->earthObject->position.y = p3sind(demoState->teapotObject->euler.y * demoState->earthOrbit) * demoState->earthOrbitDistance;
 
 	// controls
 	
