@@ -558,7 +558,7 @@ void a3demo_initScene(a3_DemoState *demoState)
 	demoState->teapotRot = 10;
 	demoState->earthRot = 100;
 	demoState->earthTilt = 23.5f;
-	demoState->earthOrbit = 10;
+	demoState->earthOrbit = 200;
 	demoState->earthOrbitDistance = 10;
 }
 
@@ -658,8 +658,13 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	if (demoState->earthObject->euler.z >= 360)
 		demoState->earthObject->euler.z -= 360;
 
-	demoState->earthObject->position.x = p3cosd(demoState->teapotObject->euler.y * demoState->earthOrbit) * demoState->earthOrbitDistance;
-	demoState->earthObject->position.y = p3sind(demoState->teapotObject->euler.y * demoState->earthOrbit) * demoState->earthOrbitDistance;
+	//this also works but is too imprecise to be smooth at slow speeds
+	//p3real teapotRotY = (int)(demoState->teapotObject->euler.y * demoState->earthOrbit * (float)dt) % 360;
+	p3real teapotRotY = (demoState->teapotObject->euler.y * demoState->earthOrbit * (float)dt);
+	while (teapotRotY > 360) { teapotRotY -= 360; }
+
+	demoState->earthObject->position.x = p3cosd(teapotRotY) * demoState->earthOrbitDistance;
+	demoState->earthObject->position.y = p3sind(teapotRotY) * demoState->earthOrbitDistance;
 
 	// controls
 
