@@ -1,30 +1,30 @@
 /*
-	Copyright 2011-2017 Daniel S. Buckstein
+Copyright 2011-2017 Daniel S. Buckstein
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-		http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 /*
-	animal3D SDK: Minimal 3D Animation Framework
-	By Daniel S. Buckstein
-	
-	a3_DemoState.c/.cpp
-	Demo state function implementations.
+animal3D SDK: Minimal 3D Animation Framework
+By Daniel S. Buckstein
 
-	********************************************
-	*** THIS IS YOUR DEMO'S MAIN SOURCE FILE ***
-	*** Implement your demo logic here.      ***
-	********************************************
+a3_DemoState.c/.cpp
+Demo state function implementations.
+
+********************************************
+*** THIS IS YOUR DEMO'S MAIN SOURCE FILE ***
+*** Implement your demo logic here.      ***
+********************************************
 */
 
 
@@ -657,12 +657,12 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	demoState->earthObject->euler.z += demoState->earthRot * (float)dt;
 	if (demoState->earthObject->euler.z >= 360)
 		demoState->earthObject->euler.z -= 360;
-	
+
 	demoState->earthObject->position.x = p3cosd(demoState->teapotObject->euler.y * demoState->earthOrbit) * demoState->earthOrbitDistance;
 	demoState->earthObject->position.y = p3sind(demoState->teapotObject->euler.y * demoState->earthOrbit) * demoState->earthOrbitDistance;
 
 	// controls
-	
+
 	// move and rotate camera
 	a3demo_moveSceneObject(demoState->camera->sceneObject, (float)dt * demoState->camera->ctrlMoveSpeed,
 		(p3real)a3keyboardGetDifference(demoState->keyboard, 'D', 'A'),
@@ -759,7 +759,7 @@ void a3demo_render(a3_DemoState *demoState)
 	// draw teapot & earth
 	currentDemoProgram = demoState->prog_drawPhong_obj;
 	a3shaderProgramActivate(currentDemoProgram->program);
-	
+
 	currentDrawable = demoState->draw_teapot;
 	currentSceneObject = demoState->teapotObject;
 	if (!useVerticalY)	// teapot's axis is Y
