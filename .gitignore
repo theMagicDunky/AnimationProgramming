@@ -14,6 +14,7 @@ build*/
 ipch/
 xcuserdata/
 _WORKSPACE/
+*.vs/
 *.DS_Store
 *.ipch
 *.db
