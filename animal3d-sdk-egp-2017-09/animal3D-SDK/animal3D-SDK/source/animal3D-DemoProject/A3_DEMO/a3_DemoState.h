@@ -129,11 +129,12 @@ struct a3_DemoState
 	p3real earthOrbit;			//	- earth orbit
 	p3real earthOrbitDistance;	//	- earth orbit distance
 
+	p3real currentEarthOrbit;
 
-								//---------------------------------------------------------------------
-								// objects that have known or fixed instance count in the whole demo
+	//---------------------------------------------------------------------
+	// objects that have known or fixed instance count in the whole demo
 
-								// text renderer
+	// text renderer
 	int textInit, showText;
 	a3_TextRenderer text[1];
 
