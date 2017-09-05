@@ -67,9 +67,9 @@ extern "C"
 		demoStateMaxCount_texture = 4,
 		demoStateMaxCount_drawDataBuffer = 1,
 		demoStateMaxCount_vertexArray = 4,
-		demoStateMaxCount_drawable = 4,
-		demoStateMaxCount_shaderProgram = 4,
-		demoStateMaxCount_shaderProgramUniform = 8,
+		demoStateMaxCount_drawable = 8,
+		demoStateMaxCount_shaderProgram = 8,
+		demoStateMaxCount_shaderProgramUniform = 16,
 	};
 
 
@@ -86,7 +86,13 @@ extern "C"
 					// common vertex shader uniforms
 					uMVP,						// model-view-projection transform
 					uLightPos_obj,				// light position in object-space
-					uEyePos_obj,				// eye posistion in object-space
+					uEyePos_obj,				// eye position in object-space
+
+					// geometry shader uniforms
+					uWaypoints,					// all waypoint data for curve drawing
+					uWaypointHandles,			// all waypoint handle data for Hermite curves
+					uWaypointCount,				// number of path waypoints
+					uWaypointIndex,				// index of current path waypoint
 
 					// common fragment shader uniforms
 					uColor,						// uniform color
@@ -121,15 +127,6 @@ extern "C"
 		int frameBorder;
 
 
-		// ****
-		// add variables to make things move
-		//	- teapot rotation
-		//	- earth rotation
-		//	- earth tilt
-		//	- earth orbit
-		//	- earth orbit distance
-
-
 		//---------------------------------------------------------------------
 		// objects that have known or fixed instance count in the whole demo
 
@@ -147,6 +144,30 @@ extern "C"
 
 
 		//---------------------------------------------------------------------
+		// animation variables and objects
+
+		// path waypoints
+		p3vec3 waypoints[64];
+		p3vec3 waypointHandles[64];
+		unsigned int waypointCount, waypointCountMax;
+		unsigned int currentWaypointIndex;
+		float currentSegmentParam;
+		int useHermiteCurveSegments;
+
+
+		// ****TO-DO: 
+		//	- add anything else required for waypoint controller
+		//		-> it's a keyframe controller; time is important!
+		//		-> what else? looping behaviors?
+		float segmentTime;
+
+
+		// ****TO-DO: 
+		//	- add sample table(s) for speed control
+		//	- add other pertinent values for speed control
+
+
+		//---------------------------------------------------------------------
 		// object arrays: organized as anonymous unions for two reasons: 
 		//	1. easy to manage entire sets of the same type of object using the 
 		//		array component
@@ -159,8 +180,7 @@ extern "C"
 				a3_DemoSceneObject
 					cameraObject[1],					// transform for camera
 					lightObject[1],						// transform for light
-					earthObject[1],						// transform for earth sphere
-					teapotObject[1];					// transform for checkered teapot
+					pathObject[1];						// transform for path-follower (teapot or earth)
 			};
 		};
 
@@ -211,7 +231,8 @@ extern "C"
 				a3_VertexArrayDescriptor
 					vao_position[1],							// VAO for vertex format with only position
 					vao_position_color[1],						// VAO for vertex format with position and color
-					vao_position_texcoords[1];					// VAO for vertex format with position and UVs
+					vao_position_texcoords[1],					// VAO for vertex format with position and UVs
+					vao_tangentBasis[1];						// VAO for vertex format with full tangent basis, inclusing position and UVs
 			};
 		};
 
@@ -222,6 +243,8 @@ extern "C"
 				a3_VertexDrawable
 					draw_grid[1],								// wireframe ground plane to emphasize scaling
 					draw_axes[1],								// coordinate axes at the center of the world
+					draw_node[1],								// small round shape for a node or waypoint
+					draw_curve[1],								// single-vertex shape used for drawing curve segments
 					draw_sphere[1],								// procedural sphere
 					draw_teapot[1];								// loaded teapot model
 			};
@@ -236,7 +259,9 @@ extern "C"
 					prog_drawColor[1],					// draw color attribute
 					prog_drawColorUnif[1],				// draw uniform color
 					prog_drawTexture[1],				// draw texture sample
-					prog_drawPhong_obj[1];				// draw object-space Phong shading
+					prog_drawPhong_obj[1],				// draw object-space Phong shading
+					prog_drawLine[1],					// draw line segment
+					prog_drawCurve[1];					// draw curve segment
 			};
 		};
 

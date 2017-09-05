@@ -125,7 +125,7 @@ A3API a3_DemoState *a3test_load()
 //	demoState->verticalAxis = 1;
 
 	// enable asset streaming between loads
-	demoState->streaming = 1;
+//	demoState->streaming = 1;
 
 
 	// set default GL state
@@ -349,6 +349,11 @@ A3API void a3test_keyCharPress(a3_DemoState *demoState, int asciiKey)
 	case 'l': 
 		a3demo_unloadShaders(demoState);
 		a3demo_loadShaders(demoState);
+		break;
+
+
+	case 'h':
+		demoState->useHermiteCurveSegments = 1 - demoState->useHermiteCurveSegments;
 		break;
 	}
 }

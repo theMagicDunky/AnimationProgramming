@@ -46,6 +46,9 @@
     <Filter Include="Source Files\common\A3_DEMO\_utilities">
       <UniqueIdentifier>{1a9e718c-12e8-4df2-82c7-bdb88b5bc6b6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\A3_DEMO\glsl\4x\gs">
+      <UniqueIdentifier>{ed1e8a2a-47bd-4453-8c34-d3503170014b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="_src_win\main_dll.c">
@@ -57,7 +60,7 @@
     <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\a3_DemoState.c">
       <Filter>Source Files\common\A3_DEMO</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_DemoStateObject.c">
+    <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_DemoSceneObject.c">
       <Filter>Source Files\common\A3_DEMO\_utilities</Filter>
     </ClCompile>
   </ItemGroup>
@@ -83,6 +86,27 @@
       <Filter>Resource Files\A3_DEMO\glsl\4x\vs</Filter>
     </None>
     <None Include="..\..\..\resource\glsl\4x\vs\passthru_transform_vs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\vs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\vs\passTexcoord_transform_vs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\vs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\fs\drawTexture_fs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\fs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\vs\passPhong_obj_transform_vs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\vs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\fs\drawPhong_obj_fs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\fs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\gs\drawLine_gs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\gs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\gs\drawHermite_gs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\gs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\vs\passInstanceID_vs4x.glsl">
       <Filter>Resource Files\A3_DEMO\glsl\4x\vs</Filter>
     </None>
   </ItemGroup>

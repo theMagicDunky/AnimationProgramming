@@ -43,6 +43,7 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 
 
 //-----------------------------------------------------------------------------
@@ -119,10 +120,10 @@ void a3demo_loadTextures(a3_DemoState *demoState)
 void a3demo_loadGeometry(a3_DemoState *demoState)
 {
 	// static model transformations
-	static const p3mat4 downscaleTenth = {
-		+0.1f, 0.0f, 0.0f, 0.0f,
-		0.0f, +0.1f, 0.0f, 0.0f,
-		0.0f, 0.0f, +0.1f, 0.0f,
+	static const p3mat4 downscale100x = {
+		+0.01f, 0.0f, 0.0f, 0.0f,
+		0.0f, +0.01f, 0.0f, 0.0f,
+		0.0f, 0.0f, +0.01f, 0.0f,
 		0.0f, 0.0f, 0.0f, +1.0f,
 	};
 
@@ -137,13 +138,15 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 
 	// file streaming (if requested)
 	a3_FileStream fileStream[1] = { 0 };
-	const char *const geometryStream = "./data/geometry.dat";
+	const char *const geometryStream = "./data/geom_waypoints.dat";
 
 	// geometry data
 	a3_GeometryData sceneShapesData[2] = { 0 };
+	a3_GeometryData overlayShapesData[2] = { 0 };
 	a3_GeometryData proceduralShapesData[1] = { 0 };
 	a3_GeometryData loadedModelsData[1] = { 0 };
 	const unsigned int sceneShapesCount = 2;
+	const unsigned int overlayShapesCount = 2;
 	const unsigned int proceduralShapesCount = 1;
 	const unsigned int loadedModelsCount = 1;
 
@@ -161,6 +164,10 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 		for (i = 0; i < sceneShapesCount; ++i)
 			a3fileStreamReadObject(fileStream, sceneShapesData + i, a3geometryLoadDataBinary);
 
+		// overlay scene objects
+		for (i = 0; i < overlayShapesCount; ++i)
+			a3fileStreamReadObject(fileStream, overlayShapesData + i, a3geometryLoadDataBinary);
+
 		// procedural models
 		for (i = 0; i < proceduralShapesCount; ++i)
 			a3fileStreamReadObject(fileStream, proceduralShapesData + i, a3geometryLoadDataBinary);
@@ -177,6 +184,7 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	{
 		// create new data
 		a3_ProceduralGeometryDescriptor sceneShapes[2] = { 0 };
+		a3_ProceduralGeometryDescriptor overlayShapes[1] = { 0 };
 		a3_ProceduralGeometryDescriptor proceduralShapes[1] = { 0 };
 
 		// static scene procedural objects
@@ -188,6 +196,25 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 			a3fileStreamWriteObject(fileStream, sceneShapesData + i, a3geometrySaveDataBinary);
 		}
 
+		// static overlay objects
+		// first, "node" or "waypoint" object, just a low-resolution sphere
+		a3proceduralCreateDescriptorSphere(overlayShapes + 0, a3geomFlag_vanilla, a3geomAxis_default, 0.1f, 8, 4);
+		a3proceduralGenerateGeometryData(overlayShapesData + 0, overlayShapes + 0);
+		a3fileStreamWriteObject(fileStream, overlayShapesData + 0, a3geometrySaveDataBinary);
+
+		// single-vertex shape for curve segment drawing
+		{
+			// create vertex format
+			a3_GeometryData *pointData = overlayShapesData + 1;
+			a3geometryCreateVertexFormat(pointData->vertexFormat, 0, 0);
+			pointData->primType = a3prim_points;
+			pointData->numVertices = 1;
+			pointData->attribData[0] = pointData->data = malloc(3 * sizeof(float));
+			memset(pointData->data, 0, 3 * sizeof(float));
+			a3fileStreamWriteObject(fileStream, pointData, a3geometrySaveDataBinary);
+		}
+
+
 		// procedural
 		a3proceduralCreateDescriptorSphere(proceduralShapes + 0, a3geomFlag_tangents, a3geomAxis_default, 1.0f, 24, 16);
 		for (i = 0; i < proceduralShapesCount; ++i)
@@ -197,7 +224,7 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 		}
 
 		// loaded models
-		a3modelLoadOBJ(loadedModelsData + 0, "../../../../resource/obj/teapot/teapot.obj", a3model_calculateVertexTangents, downscaleTenth.mm);
+		a3modelLoadOBJ(loadedModelsData + 0, "../../../../resource/obj/teapot/teapot.obj", a3model_calculateVertexTangents, downscale100x.mm);
 		for (i = 0; i < loadedModelsCount; ++i)
 			a3fileStreamWriteObject(fileStream, loadedModelsData + i, a3geometrySaveDataBinary);
 
@@ -219,6 +246,11 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 		sharedVertexStorage += a3geometryGetVertexBufferSize(sceneShapesData + i);
 		numVerts += sceneShapesData[i].numVertices;
 	}
+	for (i = 0; i < overlayShapesCount; ++i)
+	{
+		sharedVertexStorage += a3geometryGetVertexBufferSize(overlayShapesData + i);
+		numVerts += overlayShapesData[i].numVertices;
+	}
 	for (i = 0; i < proceduralShapesCount; ++i)
 	{
 		sharedVertexStorage += a3geometryGetVertexBufferSize(proceduralShapesData + i);
@@ -235,6 +267,8 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	sharedIndexStorage = 0;
 	for (i = 0; i < sceneShapesCount; ++i)
 		sharedIndexStorage += a3indexStorageSpaceRequired(sceneCommonIndexFormat, sceneShapesData[i].numIndices);
+	for (i = 0; i < overlayShapesCount; ++i)
+		sharedIndexStorage += a3indexStorageSpaceRequired(sceneCommonIndexFormat, overlayShapesData[i].numIndices);
 	for (i = 0; i < proceduralShapesCount; ++i)
 		sharedIndexStorage += a3indexStorageSpaceRequired(sceneCommonIndexFormat, proceduralShapesData[i].numIndices);
 	for (i = 0; i < loadedModelsCount; ++i)
@@ -254,15 +288,20 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	currentDrawable = demoState->draw_axes;
 	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, sceneShapesData + 0, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
 
-	// grid
+	// grid: position attribute only
+	// overlay objects are also just position
 	vao = demoState->vao_position;
 	a3geometryGenerateVertexArray(vao, sceneShapesData + 1, vbo_ibo, sharedVertexStorage);
 	currentDrawable = demoState->draw_grid;
 	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, sceneShapesData + 1, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
+	currentDrawable = demoState->draw_node;
+	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 0, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
+	currentDrawable = demoState->draw_curve;
+	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 1, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
 
 	// models: procedural and loaded have the same format, so they can share 
 	//	a vertex format
-	vao = demoState->vao_position_texcoords;
+	vao = demoState->vao_tangentBasis;
 	a3geometryGenerateVertexArray(vao, proceduralShapesData + 0, vbo_ibo, sharedVertexStorage);
 	currentDrawable = demoState->draw_sphere;
 	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, proceduralShapesData + 0, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
@@ -272,6 +311,8 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	// release data when done
 	for (i = 0; i < sceneShapesCount; ++i)
 		a3geometryReleaseData(sceneShapesData + i);
+	for (i = 0; i < overlayShapesCount; ++i)
+		a3geometryReleaseData(overlayShapesData + i);
 	for (i = 0; i < proceduralShapesCount; ++i)
 		a3geometryReleaseData(proceduralShapesData + i);
 	for (i = 0; i < loadedModelsCount; ++i)
@@ -294,6 +335,12 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 		"uLightPos_obj",
 		"uEyePos_obj",
 
+		// common geometry
+		"uWaypoints",
+		"uWaypointHandles",
+		"uWaypointCount",
+		"uWaypointIndex",
+
 		// common fragment
 		"uColor",
 		"uTex_dm",
@@ -312,10 +359,15 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 	union {
 		struct {
 			// vertex shaders
+			a3_Shader passInstanceID_vs[1];
 			a3_Shader passthru_transform_vs[1];
 			a3_Shader passColor_transform_vs[1];
 			a3_Shader passTexcoord_transform_vs[1];
 			a3_Shader passPhong_obj_transform_vs[1];
+
+			// geometry shaders
+			a3_Shader drawLine_gs[1];
+			a3_Shader drawHermite_gs[1];
 
 			// fragment shaders
 			a3_Shader drawColorUnif_fs[1];
@@ -332,10 +384,14 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 		a3_ShaderType shaderType;
 		const char *filePath;
 	} shaderDescriptor[] = {
+		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passInstanceID_vs4x.glsl" },
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passthru_transform_vs4x.glsl" },
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passColor_transform_vs4x.glsl" },
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passTexcoord_transform_vs4x.glsl" },
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passPhong_obj_transform_vs4x.glsl" },
+
+		{ a3shader_geometry,	"../../../../resource/glsl/4x/gs/drawLine_gs4x.glsl" },
+		{ a3shader_geometry,	"../../../../resource/glsl/4x/gs/drawHermite_gs4x.glsl" },
 
 		{ a3shader_fragment,	"../../../../resource/glsl/4x/fs/drawColorUnif_fs4x.glsl" },
 		{ a3shader_fragment,	"../../../../resource/glsl/4x/fs/drawColorAttrib_fs4x.glsl" },
@@ -385,6 +441,20 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 	a3shaderProgramCreate(currentDemoProg->program);
 	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.passPhong_obj_transform_vs);
 	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawPhong_obj_fs);
+
+	// draw line program
+	currentDemoProg = demoState->prog_drawLine;
+	a3shaderProgramCreate(currentDemoProg->program);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.passInstanceID_vs);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawLine_gs);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawColorAttrib_fs);
+
+	// draw curve program
+	currentDemoProg = demoState->prog_drawCurve;
+	a3shaderProgramCreate(currentDemoProg->program);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.passInstanceID_vs);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawHermite_gs);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawColorAttrib_fs);
 
 
 	// activate a primitive for validation
@@ -491,7 +561,7 @@ void a3demo_unloadShaders(a3_DemoState *demoState)
 void a3demo_initScene(a3_DemoState *demoState)
 {
 	unsigned int i;
-	const float cameraAxisPos = 10.0f;
+	const float cameraAxisPos = 20.0f;
 
 	// all objects
 	for (i = 0; i < demoStateMaxCount_sceneObject; ++i)
@@ -508,6 +578,7 @@ void a3demo_initScene(a3_DemoState *demoState)
 	demoState->sceneCamera->ctrlRotateSpeed = 5.0f;
 	demoState->sceneCamera->ctrlZoomSpeed = 5.0f;
 
+/*
 	// camera's starting orientation depends on "vertical" axis
 	// we want the exact same view in either case
 	if (demoState->verticalAxis)
@@ -530,6 +601,10 @@ void a3demo_initScene(a3_DemoState *demoState)
 		demoState->sceneCamera->sceneObject->euler.y = 0.0f;
 		demoState->sceneCamera->sceneObject->euler.z = 135.0f;
 	}
+*/
+	demoState->sceneCamera->sceneObject->position.x = 8.0f;
+	demoState->sceneCamera->sceneObject->position.y = 4.0f;
+	demoState->sceneCamera->sceneObject->position.z = cameraAxisPos;
 
 	// same fovy to start
 	demoState->sceneCamera->fovy = realSixty;
@@ -550,9 +625,38 @@ void a3demo_initScene(a3_DemoState *demoState)
 	}
 
 
-	// other scene objects
-	demoState->earthObject->position.x = 8.0f;
-	demoState->teapotObject->position.x = 0.0f;
+	// animation: preset a few path waypoints
+	memset(demoState->waypoints, 0, sizeof(demoState->waypoints));
+	demoState->waypointCountMax = sizeof(demoState->waypoints) / sizeof(p3vec3);
+	demoState->currentWaypointIndex = 0;
+	demoState->currentSegmentParam = 0.0f;
+
+	demoState->waypointCount = 4;
+	demoState->useHermiteCurveSegments = 0;
+
+	demoState->waypoints[0].x = 0.0f;
+	demoState->waypoints[1].x = 10.0f;
+	demoState->waypoints[2].x = 15.0f;
+	demoState->waypoints[3].x = 17.5f;
+
+	demoState->waypointHandles[0].x = demoState->waypoints[0].x + 8.0f;
+	demoState->waypointHandles[1].x = demoState->waypoints[1].x + 4.0f;
+	demoState->waypointHandles[2].x = demoState->waypoints[2].x + 2.0f;
+	demoState->waypointHandles[3].x = demoState->waypoints[3].x + 1.0f;
+
+	demoState->waypointHandles[0].y = 12.0f;
+	demoState->waypointHandles[1].y = 6.0f;
+	demoState->waypointHandles[2].y = 3.0f;
+	demoState->waypointHandles[3].y = 1.5f;
+
+
+	// ****TO-DO: 
+	//	- load keyframe data if file-based (replace hard-coded data above)
+
+	demoState->segmentTime = 0.0f;
+
+	// ****TO-DO: 
+	//	- generate speed control tables
 }
 
 
@@ -633,13 +737,44 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 {
 	unsigned int i;
 
-	// ****
-	// make objects move: 
-	//	- teapot rotates counter-clockwise about axis
-	//	- earth has a constant tilt of 23.5 degrees
-	//	- earth rotates counter-clockwise about axis
-	//	- earth orbits counter-clockwise about teapot's position
-	//	- yes, the sun is a teapot
+
+	// ****TO-DO: 
+	//	- animate path-following object
+	//	1) update segement time
+	//		-> if we hit segment duration reset
+	//	2) calculate t param
+	//		t = current segment time / total segment time
+	{
+		const float segmentDuration = 4.2f;
+
+		demoState->segmentTime += (float)dt;
+		if (demoState->segmentTime >= segmentDuration)
+		{
+			demoState->segmentTime -= segmentDuration;
+			++demoState->currentWaypointIndex;
+			if (demoState->currentWaypointIndex > demoState->waypointCount - 2)
+				demoState->currentWaypointIndex = 0;
+		}
+		// currentSegmentParam is the t for whichever segment its on
+		demoState->currentSegmentParam = demoState->segmentTime / segmentDuration;
+	}
+
+	// control teapot
+	{
+		const p3vec3 p0 = demoState->waypoints[demoState->currentWaypointIndex];
+		const p3vec3 p1 = demoState->waypoints[demoState->currentWaypointIndex + 1];
+		const p3vec3 h0 = demoState->waypointHandles[demoState->currentWaypointIndex];
+		const p3vec3 h1 = demoState->waypointHandles[demoState->currentWaypointIndex + 1];
+
+		if (demoState->useHermiteCurveSegments)
+			p3real3HermiteControl(demoState->pathObject->position.v, p0.v, p1.v, h0.v, h1.v, demoState->currentSegmentParam);
+		else
+			p3real3Lerp(demoState->pathObject->position.v, p0.v, p1.v, demoState->currentSegmentParam);
+	}
+
+
+	// ****TO-DO
+	//	- implement speed control sampling
 
 
 	// controls
@@ -652,8 +787,8 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	);
 	if (a3mouseIsHeld(demoState->mouse, a3mouse_left))
 	{
-		const p3real azimuth = -(p3real)a3mouseGetDeltaX(demoState->mouse);
-		const p3real elevation = -(p3real)a3mouseGetDeltaY(demoState->mouse);
+		const p3real azimuth = 0.0f;	// -(p3real)a3mouseGetDeltaX(demoState->mouse);
+		const p3real elevation = 0.0f;	// -(p3real)a3mouseGetDeltaY(demoState->mouse);
 
 		// this really defines which way is "up"
 		// mouse's Y motion controls pitch, but X can control yaw or roll
@@ -689,6 +824,8 @@ void a3demo_render(a3_DemoState *demoState)
 
 	const int useVerticalY = demoState->verticalAxis;
 
+	unsigned int i;
+
 
 	// grid lines highlight
 	// if Y axis is up, give it a greenish hue
@@ -698,6 +835,17 @@ void a3demo_render(a3_DemoState *demoState)
 		useVerticalY ? 0.25f : 0.20f,
 		useVerticalY ? 0.20f : 0.25f,
 		1.0f
+	};
+
+
+	// curve handle color: orange
+	const float handleColor[] = {
+		1.0f, 0.5f, 0.0f, 1.0f
+	};
+
+	// waypoint color: blue
+	const float waypointColor[] = {
+		0.0f, 0.5f, 1.0f, 1.0f
 	};
 
 
@@ -737,10 +885,12 @@ void a3demo_render(a3_DemoState *demoState)
 	//	- send uniforms
 	//	- draw
 
+
 	// draw teapot & earth
 	currentDemoProgram = demoState->prog_drawPhong_obj;
 	a3shaderProgramActivate(currentDemoProgram->program);
-	
+
+/*	
 	currentDrawable = demoState->draw_teapot;
 	currentSceneObject = demoState->teapotObject;
 	if (!useVerticalY)	// teapot's axis is Y
@@ -762,9 +912,17 @@ void a3demo_render(a3_DemoState *demoState)
 	a3textureActivate(demoState->tex_checker, a3tex_unit00);
 	a3textureActivate(demoState->tex_checker, a3tex_unit01);
 	a3vertexActivateAndRenderDrawable(currentDrawable);
+*/
 
-	currentDrawable = demoState->draw_sphere;
-	currentSceneObject = demoState->earthObject;
+//	currentDrawable = demoState->draw_sphere;
+//	a3textureActivate(demoState->tex_earth_dm, a3tex_unit00);
+//	a3textureActivate(demoState->tex_earth_sm, a3tex_unit01);
+
+	currentDrawable = demoState->draw_teapot;
+	a3textureActivate(demoState->tex_checker, a3tex_unit00);
+	a3textureActivate(demoState->tex_checker, a3tex_unit01);
+
+	currentSceneObject = demoState->pathObject;
 	if (useVerticalY)	// sphere's axis is Z
 	{
 		p3real4x4ProductTransform(modelMat.m, convertZ2Y.m, currentSceneObject->modelMat.m);
@@ -781,8 +939,6 @@ void a3demo_render(a3_DemoState *demoState)
 	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
 	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uLightPos_obj, 1, lightPos_obj.v);
 	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uEyePos_obj, 1, eyePos_obj.v);
-	a3textureActivate(demoState->tex_earth_dm, a3tex_unit00);
-	a3textureActivate(demoState->tex_earth_sm, a3tex_unit01);
 	a3vertexActivateAndRenderDrawable(currentDrawable);
 
 
@@ -796,6 +952,60 @@ void a3demo_render(a3_DemoState *demoState)
 	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
 	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, gridColor);
 	a3vertexActivateAndRenderDrawable(currentDrawable);
+
+
+	// overlay items
+	glDisable(GL_DEPTH_TEST);
+
+	// draw curve segments
+	if (demoState->useHermiteCurveSegments)
+		currentDemoProgram = demoState->prog_drawCurve;
+	else
+		currentDemoProgram = demoState->prog_drawLine;
+	a3shaderProgramActivate(currentDemoProgram->program);
+	modelViewProjectionMat = demoState->camera->viewProjectionMat;
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypoints, demoState->waypointCount, demoState->waypoints->v);
+	a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypointHandles, demoState->waypointCount, demoState->waypointHandles->v);
+//	a3shaderUniformSendInt(a3unif_single, currentDemoProgram->uWaypointCount, 1, &demoState->waypointCount);
+//	a3shaderUniformSendInt(a3unif_single, currentDemoProgram->uWaypointIndex, 1, &demoState->currentWaypointIndex);
+
+	// render segments if there are enough waypoints
+	currentDrawable = demoState->draw_curve;
+	if (demoState->waypointCount > 1)
+		a3vertexActivateAndRenderDrawableInstanced(currentDrawable, demoState->waypointCount - 1);
+
+	// draw waypoints
+	currentDemoProgram = demoState->prog_drawColorUnif;
+	a3shaderProgramActivate(currentDemoProgram->program);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, waypointColor);
+
+	modelMat = p3identityMat4;
+	currentDrawable = demoState->draw_node;
+	a3vertexActivateDrawable(currentDrawable);
+	for (i = 0; i < demoState->waypointCount; ++i)
+	{
+		modelMat.v3.xyz = demoState->waypoints[i];
+		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
+		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+		a3vertexRenderActiveDrawable();
+	}
+
+	// draw handles
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, handleColor);
+
+	modelMat = p3identityMat4;
+	currentDrawable = demoState->draw_node;
+	a3vertexActivateDrawable(currentDrawable);
+	for (i = 0; i < demoState->waypointCount; ++i)
+	{
+		modelMat.v3.xyz = demoState->waypointHandles[i];
+		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
+		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+		a3vertexRenderActiveDrawable();
+	}
+
+	glEnable(GL_DEPTH_TEST);
 
 
 	// draw coordinate axes in front of everything
@@ -812,6 +1022,24 @@ void a3demo_render(a3_DemoState *demoState)
 	// deactivate things
 	a3vertexDeactivateDrawable();
 	a3shaderProgramDeactivate();
+
+
+	// HUD
+	if (demoState->textInit && demoState->showText)
+	{
+		const char *curveTypeText = demoState->useHermiteCurveSegments ? "Hermite" : "Lines";
+		glDisable(GL_DEPTH_TEST);
+		a3textDraw(demoState->text,
+			-0.9f, -0.7f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"Path type (toggle = \'h\'): %s", curveTypeText);
+		a3textDraw(demoState->text,
+			-0.9f, -0.8f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"Path segment: %u", demoState->currentWaypointIndex);
+		a3textDraw(demoState->text,
+			-0.9f, -0.9f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"Segment param: %f", demoState->currentSegmentParam);
+		glEnable(GL_DEPTH_TEST);
+	}
 }
 
 
