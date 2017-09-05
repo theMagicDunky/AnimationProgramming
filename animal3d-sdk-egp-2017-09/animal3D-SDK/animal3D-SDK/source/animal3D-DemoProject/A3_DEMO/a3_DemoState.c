@@ -564,11 +564,13 @@ void a3demo_initScene(a3_DemoState *demoState)
 
 	// lab1 moving object vars
 	demoState->teapotRot = 10;
-	demoState->earthRot = 100;
+	demoState->earthRot = 175;
 	demoState->earthTilt = 23.5f;
-	demoState->earthOrbit = 50;
+	demoState->earthOrbitSpeed = 50;
 	demoState->earthOrbitDistance = 10;
 	demoState->currentEarthOrbit = 0;
+
+	demoState->cubeRotSpeed = 100;
 }
 
 
@@ -667,12 +669,21 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	if (demoState->earthObject->euler.z >= 360)
 		demoState->earthObject->euler.z -= 360;
 
-	demoState->currentEarthOrbit += demoState->earthOrbit * (float)dt;
+	demoState->currentEarthOrbit += demoState->earthOrbitSpeed * (float)dt;
 	if (demoState->currentEarthOrbit >= 360)
 		demoState->currentEarthOrbit -= 360;
 
 	demoState->earthObject->position.x = p3cosd(demoState->currentEarthOrbit) * demoState->earthOrbitDistance;
 	demoState->earthObject->position.y = p3sind(demoState->currentEarthOrbit) * demoState->earthOrbitDistance;
+
+	p3real newRot;	
+	newRot = demoState->cubeObject->euler.x;
+	newRot += demoState->cubeRotSpeed * (float)dt;
+	if (newRot >= 360)
+		newRot -= 360;
+	demoState->cubeObject->euler.x = demoState->cubeObject->euler.y = demoState->cubeObject->euler.z = newRot;
+
+	demoState->cubeObject->position.z = p3cosd(demoState->currentEarthOrbit) * 3.5f + 3.5f;
 
 	// controls
 
@@ -697,7 +708,6 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 			demoState->verticalAxis ? azimuth : realZero,
 			demoState->verticalAxis ? realZero : azimuth);
 	}
-
 
 	// update scene objects
 	for (i = 0; i < demoStateMaxCount_sceneObject; ++i)

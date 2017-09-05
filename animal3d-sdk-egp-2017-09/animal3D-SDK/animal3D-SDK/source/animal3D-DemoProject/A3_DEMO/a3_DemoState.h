@@ -126,10 +126,11 @@ struct a3_DemoState
 	p3real teapotRot;			//	- teapot rotation
 	p3real earthRot;			//	- earth rotation
 	p3real earthTilt;			//	- earth tilt
-	p3real earthOrbit;			//	- earth orbit
+	p3real earthOrbitSpeed;			//	- earth orbit
 	p3real earthOrbitDistance;	//	- earth orbit distance
 
 	p3real currentEarthOrbit;
+	p3real cubeRotSpeed;
 
 	//---------------------------------------------------------------------
 	// objects that have known or fixed instance count in the whole demo
