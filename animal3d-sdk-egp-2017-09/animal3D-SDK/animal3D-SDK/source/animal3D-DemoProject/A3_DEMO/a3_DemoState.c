@@ -27,6 +27,19 @@ Demo state function implementations.
 ********************************************
 */
 
+/*
+	Work by Duncan Carroll (0894235) and Brian Baron (0974390)
+	Brian already told you but we worked together in our seperate implementations
+
+	EGP-480-01 Lab 1, 9/8/17
+
+	Certificate of Authenticity:
+	I certify that this work is entirely my own.
+	The assessor of this project may reproduce this project
+	and provide copies to other academic staff, and/or communicate a copy of
+	this project to a plagiarism - checking service, which may retain a copy of the	project on its database.
+*/
+
 
 #include "a3_DemoState.h"
 
@@ -659,6 +672,7 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	//	- earth orbits counter-clockwise about teapot's position
 	//	- yes, the sun is a teapot
 
+	// all rotation values are clamped between 0 and 360
 	demoState->teapotObject->euler.y += demoState->teapotRot * (float)dt;
 	if (demoState->teapotObject->euler.y >= 360)
 		demoState->teapotObject->euler.y -= 360;
@@ -683,6 +697,7 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 		newRot -= 360;
 	demoState->cubeObject->euler.x = demoState->cubeObject->euler.y = demoState->cubeObject->euler.z = newRot;
 
+																			// keeps cube's z pos above 0
 	demoState->cubeObject->position.z = p3cosd(demoState->currentEarthOrbit) * 3.5f + 3.5f;
 
 	// controls
