@@ -653,7 +653,17 @@ void a3demo_initScene(a3_DemoState *demoState)
 	// ****TO-DO: 
 	//	- load keyframe data if file-based (replace hard-coded data above)
 
-	demoState->segmentTime = 0.0f;
+	demoState->pathTime = 0.0f;
+
+	demoState->waypointTimes[0] = 0.0f;
+	demoState->waypointTimes[1] = 4.20f;
+	demoState->waypointTimes[2] = 6.0f;
+	demoState->waypointTimes[3] = 8.0f;
+
+	for (i = 1; i < demoState->waypointCount; ++i)
+	{
+		demoState->segmentDurations[i - 1] = demoState->waypointTimes[i] - demoState->waypointTimes[i - 1];
+	}
 
 	// ****TO-DO: 
 	//	- generate speed control tables
@@ -740,23 +750,42 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 
 	// ****TO-DO: 
 	//	- animate path-following object
-	//	1) update segement time
-	//		-> if we hit segment duration reset
-	//	2) calculate t param
-	//		t = current segment time / total segment time
+	//		1. add time change to total path time
+	//		2. if path time > segment end time move onto the next segment
+	//		3. calc normalized parameter for time
 	{
-		const float segmentDuration = 4.2f;
+		const unsigned segmentCount = demoState->waypointCount - 1;
+		float segmentStart = demoState->waypointTimes[demoState->currentWaypointIndex];
+		float segmentEnd = demoState->waypointTimes[demoState->currentWaypointIndex + 1];
 
-		demoState->segmentTime += (float)dt;
-		if (demoState->segmentTime >= segmentDuration)
+		//1
+		demoState->pathTime += (float)dt;
+
+		//2
+		if (demoState->pathTime >= demoState->waypointTimes[demoState->currentWaypointIndex + 1])
 		{
-			demoState->segmentTime -= segmentDuration;
-			++demoState->currentWaypointIndex;
-			if (demoState->currentWaypointIndex > demoState->waypointCount - 2)
+			//looping behaviors
+			if (demoState->currentWaypointIndex == segmentCount)
+			{
+				demoState->pathTime -= demoState->waypointTimes[segmentCount];
 				demoState->currentWaypointIndex = 0;
-		}
-		// currentSegmentParam is the t for whichever segment its on
-		demoState->currentSegmentParam = demoState->segmentTime / segmentDuration;
+			}
+			else
+			{
+				++demoState->currentWaypointIndex;
+			}
+
+			//fix segment start and end
+			segmentStart = demoState->waypointTimes[demoState->currentWaypointIndex];
+		}	segmentEnd = demoState->waypointTimes[demoState->currentWaypointIndex + 1];
+
+		//3
+		/*
+			unlerp formula
+
+			(n - n0) / (n1 - n0)
+		*/
+		demoState->currentSegmentParam = unlerp(segmentStart, segmentEnd, demoState->pathTime);
 	}
 
 	// control teapot
@@ -1034,10 +1063,10 @@ void a3demo_render(a3_DemoState *demoState)
 			"Path type (toggle = \'h\'): %s", curveTypeText);
 		a3textDraw(demoState->text,
 			-0.9f, -0.8f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			"Path segment: %u", demoState->currentWaypointIndex);
+			"Path segment: %u	Duration: %f", demoState->currentWaypointIndex, demoState->segmentDurations[demoState->currentWaypointIndex]);
 		a3textDraw(demoState->text,
 			-0.9f, -0.9f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			"Segment param: %f", demoState->currentSegmentParam);
+			"Path time: %f	Segment param: %f", demoState->pathTime, demoState->currentSegmentParam);
 		glEnable(GL_DEPTH_TEST);
 	}
 }

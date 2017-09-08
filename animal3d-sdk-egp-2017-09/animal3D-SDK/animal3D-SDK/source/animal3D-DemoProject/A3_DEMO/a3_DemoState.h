@@ -149,6 +149,8 @@ extern "C"
 		// path waypoints
 		p3vec3 waypoints[64];
 		p3vec3 waypointHandles[64];
+		float waypointTimes[64];		//in global time where waypoint starts
+		float segmentDurations[64];		//distance in time between segments
 		unsigned int waypointCount, waypointCountMax;
 		unsigned int currentWaypointIndex;
 		float currentSegmentParam;
@@ -159,7 +161,7 @@ extern "C"
 		//	- add anything else required for waypoint controller
 		//		-> it's a keyframe controller; time is important!
 		//		-> what else? looping behaviors?
-		float segmentTime;
+		float pathTime;
 
 
 		// ****TO-DO: 
