@@ -50,7 +50,7 @@ inline int a3shaderRelease(a3_Shader *shader)
 	{
 		int ret = a3handleDecrementCount(shader->handle);
 		if (ret == 0)
-			shader->compiled = shader->attached = shader->type = 0;
+			shader->compiled = shader->attached = 0;
 		return ret;
 	}
 	return -1;

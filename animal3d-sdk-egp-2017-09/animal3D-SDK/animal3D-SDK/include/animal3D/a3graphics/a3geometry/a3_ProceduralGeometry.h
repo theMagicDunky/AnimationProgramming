@@ -46,17 +46,6 @@ extern "C"
 //-----------------------------------------------------------------------------
 	// descriptors & lists
 
-	// A3: Procedural geometry descriptor for any procedural shape.
-	//	member shape: which shape does this describe
-	//	members bParams, fParams: internal generation parameters
-	struct a3_ProceduralGeometryDescriptor
-	{
-		a3_ProceduralGeometryShape shape;
-		unsigned char bParams[4];
-		float fParams[4];
-	};
-
-
 	// A3: Enumeration of procedural geometry shapes.
 	enum a3_ProceduralGeometryShape
 	{
@@ -106,6 +95,17 @@ extern "C"
 		a3geomAxis_y_negative,
 		a3geomAxis_z_negative,
 		a3geomAxis_default = a3geomAxis_z
+	};
+
+
+	// A3: Procedural geometry descriptor for any procedural shape.
+	//	member shape: which shape does this describe
+	//	members bParams, fParams: internal generation parameters
+	struct a3_ProceduralGeometryDescriptor
+	{
+		a3_ProceduralGeometryShape shape;
+		unsigned char bParams[4];
+		float fParams[4];
 	};
 
 

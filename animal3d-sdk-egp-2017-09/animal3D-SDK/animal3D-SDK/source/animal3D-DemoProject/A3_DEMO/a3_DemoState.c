@@ -162,19 +162,19 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 
 		// static scene objects
 		for (i = 0; i < sceneShapesCount; ++i)
-			a3fileStreamReadObject(fileStream, sceneShapesData + i, a3geometryLoadDataBinary);
+			a3fileStreamReadObject(fileStream, sceneShapesData + i, (a3_FileStreamReadFunc)a3geometryLoadDataBinary);
 
 		// overlay scene objects
 		for (i = 0; i < overlayShapesCount; ++i)
-			a3fileStreamReadObject(fileStream, overlayShapesData + i, a3geometryLoadDataBinary);
+			a3fileStreamReadObject(fileStream, overlayShapesData + i, (a3_FileStreamReadFunc)a3geometryLoadDataBinary);
 
 		// procedural models
 		for (i = 0; i < proceduralShapesCount; ++i)
-			a3fileStreamReadObject(fileStream, proceduralShapesData + i, a3geometryLoadDataBinary);
+			a3fileStreamReadObject(fileStream, proceduralShapesData + i, (a3_FileStreamReadFunc)a3geometryLoadDataBinary);
 
 		// loaded models
 		for (i = 0; i < loadedModelsCount; ++i)
-			a3fileStreamReadObject(fileStream, loadedModelsData + i, a3geometryLoadDataBinary);
+			a3fileStreamReadObject(fileStream, loadedModelsData + i, (a3_FileStreamReadFunc)a3geometryLoadDataBinary);
 
 		// done
 		a3fileStreamClose(fileStream);
@@ -183,9 +183,9 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	else if (!demoState->streaming || a3fileStreamOpenWrite(fileStream, geometryStream))
 	{
 		// create new data
-		a3_ProceduralGeometryDescriptor sceneShapes[2] = { 0 };
-		a3_ProceduralGeometryDescriptor overlayShapes[1] = { 0 };
-		a3_ProceduralGeometryDescriptor proceduralShapes[1] = { 0 };
+		a3_ProceduralGeometryDescriptor sceneShapes[2] = { a3geomShape_none };
+		a3_ProceduralGeometryDescriptor overlayShapes[1] = { a3geomShape_none };
+		a3_ProceduralGeometryDescriptor proceduralShapes[1] = { a3geomShape_none };
 
 		// static scene procedural objects
 		a3proceduralCreateDescriptorAxes(sceneShapes + 0, a3geomFlag_wireframe, 0.0f, 1);
@@ -193,14 +193,14 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 		for (i = 0; i < sceneShapesCount; ++i)
 		{
 			a3proceduralGenerateGeometryData(sceneShapesData + i, sceneShapes + i);
-			a3fileStreamWriteObject(fileStream, sceneShapesData + i, a3geometrySaveDataBinary);
+			a3fileStreamWriteObject(fileStream, sceneShapesData + i, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 		}
 
 		// static overlay objects
 		// first, "node" or "waypoint" object, just a low-resolution sphere
 		a3proceduralCreateDescriptorSphere(overlayShapes + 0, a3geomFlag_vanilla, a3geomAxis_default, 0.1f, 8, 4);
 		a3proceduralGenerateGeometryData(overlayShapesData + 0, overlayShapes + 0);
-		a3fileStreamWriteObject(fileStream, overlayShapesData + 0, a3geometrySaveDataBinary);
+		a3fileStreamWriteObject(fileStream, overlayShapesData + 0, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 
 		// single-vertex shape for curve segment drawing
 		{
@@ -211,7 +211,7 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 			pointData->numVertices = 1;
 			pointData->attribData[0] = pointData->data = malloc(3 * sizeof(float));
 			memset(pointData->data, 0, 3 * sizeof(float));
-			a3fileStreamWriteObject(fileStream, pointData, a3geometrySaveDataBinary);
+			a3fileStreamWriteObject(fileStream, pointData, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 		}
 
 
@@ -220,13 +220,13 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 		for (i = 0; i < proceduralShapesCount; ++i)
 		{
 			a3proceduralGenerateGeometryData(proceduralShapesData + i, proceduralShapes + i);
-			a3fileStreamWriteObject(fileStream, proceduralShapesData + i, a3geometrySaveDataBinary);
+			a3fileStreamWriteObject(fileStream, proceduralShapesData + i, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 		}
 
 		// loaded models
 		a3modelLoadOBJ(loadedModelsData + 0, "../../../../resource/obj/teapot/teapot.obj", a3model_calculateVertexTangents, downscale100x.mm);
 		for (i = 0; i < loadedModelsCount; ++i)
-			a3fileStreamWriteObject(fileStream, loadedModelsData + i, a3geometrySaveDataBinary);
+			a3fileStreamWriteObject(fileStream, loadedModelsData + i, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 
 		// done
 		a3fileStreamClose(fileStream);
@@ -667,6 +667,68 @@ void a3demo_initScene(a3_DemoState *demoState)
 
 	// ****TO-DO: 
 	//	- generate speed control tables
+	demoState->useSpeedControl = 1;
+	demoState->samplesPerSegment = 32;
+	{
+		//algorithm:
+		//foreach segment in path
+		//	calculate samples and arc length
+		//	accumulate arc length
+		//normalize all arc length (/ total)
+		const unsigned int maxTableSamples = 256;
+		const unsigned int samplesPerSegment = demoState->samplesPerSegment;
+		const unsigned int numSegments = demoState->waypointCount - 1;
+		
+		//s is sampling index
+		unsigned int s, segmentEndIndex;
+
+		float totalArcLength;
+		float sampleDistance;
+		float t, dt = 1.0f / (float)samplesPerSegment;
+
+		p3vec3* sampleTablePtr, p0, p1, s0, s1;
+		float* arcLengthTablePtr;
+
+		// lerp tables
+		totalArcLength = 0.0f;
+
+		for (i = segmentEndIndex = 0; i < numSegments; ++i, segmentEndIndex += samplesPerSegment)
+		{
+			sampleTablePtr = demoState->pathSampleTableLerp + segmentEndIndex;
+			arcLengthTablePtr = demoState->arcLengthTableLerp + segmentEndIndex;
+
+			// sampling
+			p0 = demoState->waypoints[i];
+			p1 = demoState->waypoints[i + 1];
+
+			t = 0.0f;
+			s1 = s0 = p0;
+
+			// first table entry
+			*sampleTablePtr = s1;
+			*arcLengthTablePtr = t;
+
+			for (s = 1; s <= samplesPerSegment; ++s, t += dt, s0 = s1)
+			{
+				//calc next sample and distance from prev
+				//next sample is s1
+				p3real3Lerp(s1.v, p0.v, p1.v, t);
+				sampleDistance = p3real3Distance(s0.v, s1.v);
+
+				//accumulate
+				totalArcLength += sampleDistance;
+
+				*(++sampleTablePtr) = s1;
+				*(++arcLengthTablePtr) = totalArcLength;
+			}
+		}
+
+		//after all segments normalize arc length
+		for (s = 0; s < maxTableSamples; ++s)
+		{
+			demoState->arcLengthTableLerp[s] /= totalArcLength;
+		}
+	}
 }
 
 
@@ -753,6 +815,20 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	//		1. add time change to total path time
 	//		2. if path time > segment end time move onto the next segment
 	//		3. calc normalized parameter for time
+
+
+
+	// ****TO-DO
+	//	- implement speed control sampling
+
+	if (demoState->useSpeedControl)
+	{
+		const unsigned int segmentCount = demoState->waypointCount - 1;
+		const float pathDuration = demoState->waypointTimes[segmentCount];
+		float remapParam;
+	}
+
+	else
 	{
 		const unsigned segmentCount = demoState->waypointCount - 1;
 		float segmentStart = demoState->waypointTimes[demoState->currentWaypointIndex];
@@ -802,17 +878,14 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	}
 
 
-	// ****TO-DO
-	//	- implement speed control sampling
-
 
 	// controls
 	
 	// move and rotate camera
 	a3demo_moveSceneObject(demoState->camera->sceneObject, (float)dt * demoState->camera->ctrlMoveSpeed,
-		(p3real)a3keyboardGetDifference(demoState->keyboard, 'D', 'A'),
-		(p3real)a3keyboardGetDifference(demoState->keyboard, 'E', 'Q'),
-		(p3real)a3keyboardGetDifference(demoState->keyboard, 'S', 'W')
+		(p3real)a3keyboardGetDifference(demoState->keyboard, a3key_D, a3key_A),
+		(p3real)a3keyboardGetDifference(demoState->keyboard, a3key_E, a3key_Q),
+		(p3real)a3keyboardGetDifference(demoState->keyboard, a3key_S, a3key_W)
 	);
 	if (a3mouseIsHeld(demoState->mouse, a3mouse_left))
 	{

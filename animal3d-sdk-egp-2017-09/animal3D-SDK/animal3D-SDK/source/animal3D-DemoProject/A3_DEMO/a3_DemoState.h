@@ -167,7 +167,11 @@ extern "C"
 		// ****TO-DO: 
 		//	- add sample table(s) for speed control
 		//	- add other pertinent values for speed control
-
+		int useSpeedControl;
+		unsigned int samplesPerSegment;
+		float arcLengthTableLerp[256], arcLengthTableHermite[256];
+		p3vec3 pathSampleTableLerp[256], pathSampleTableHermite[256];
+		
 
 		//---------------------------------------------------------------------
 		// object arrays: organized as anonymous unions for two reasons: 

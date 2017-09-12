@@ -59,7 +59,7 @@ inline int a3bufferRelease(a3_BufferObject *buffer)
 	{
 		int ret = a3handleDecrementCount(buffer->handle);
 		if (ret == 0)
-			buffer->size = buffer->split[0] = buffer->split[1] = buffer->used[0] = buffer->used[1] = buffer->internalBinding = buffer->type = 0;
+			buffer->size = buffer->split[0] = buffer->split[1] = buffer->used[0] = buffer->used[1] = buffer->internalBinding = 0;
 		return ret;
 	}
 	return -1;
