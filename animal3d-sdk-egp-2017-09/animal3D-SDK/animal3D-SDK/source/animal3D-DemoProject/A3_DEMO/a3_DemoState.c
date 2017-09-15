@@ -701,14 +701,13 @@ void a3demo_initScene(a3_DemoState *demoState)
 			p0 = demoState->waypoints[i];
 			p1 = demoState->waypoints[i + 1];
 
-			t = 0.0f;
 			s1 = s0 = p0;
 
 			// first table entry
 			*sampleTablePtr = s1;
-			*arcLengthTablePtr = t;
+			*arcLengthTablePtr = totalArcLength; // not param
 
-			for (s = 1; s <= samplesPerSegment; ++s, t += dt, s0 = s1)
+			for (s = 1, t = dt; s <= samplesPerSegment; ++s, t += dt, s0 = s1)
 			{
 				//calc next sample and distance from prev
 				//next sample is s1
@@ -818,14 +817,52 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 
 
 
-	// ****TO-DO
+	// ****TO-DO	slides 7 and 29
 	//	- implement speed control sampling
 
 	if (demoState->useSpeedControl)
 	{
 		const unsigned int segmentCount = demoState->waypointCount - 1;
 		const float pathDuration = demoState->waypointTimes[segmentCount];
-		float remapParam;
+		float remapParam;		
+
+		// table pointers
+		p3vec3* sampleTablePtr;
+		float* arcLengthTablePtr;
+
+		// start and end
+		float remapStart, remapEnd;
+
+		demoState->pathTime += (float)dt;
+
+		// looping stuff here
+		if (demoState->pathTime >= pathDuration)
+			demoState->pathTime -= pathDuration;
+
+		// algorithm: remap time to distance
+		remapParam = demoState->pathTime / pathDuration;
+
+		// which 2 samples we are in between
+		// how far in between them are we
+		// lerp between samples using param ^
+		sampleTablePtr = demoState->pathSampleTableLerp;
+		arcLengthTablePtr = demoState->arcLengthTableLerp;
+
+		remapStart = arcLengthTablePtr[0];
+		remapEnd = arcLengthTablePtr[1];
+		i = 1;
+
+		// check if param is in between the two remap arch lengths (start/end)
+		while (!(remapParam >= remapStart && remapParam <= remapEnd))
+		{
+			remapStart = remapEnd;
+			remapEnd = arcLengthTablePtr[++i];
+		}
+
+		demoState->currentSegmentParam = unlerp(remapStart, remapEnd, remapParam);
+		
+		p3real3Lerp(demoState->pathObject->position.v,
+			sampleTablePtr[i - 1].v, sampleTablePtr[i].v, demoState->currentSegmentParam);
 	}
 
 	else
@@ -862,21 +899,39 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 			(n - n0) / (n1 - n0)
 		*/
 		demoState->currentSegmentParam = unlerp(segmentStart, segmentEnd, demoState->pathTime);
+
+
+		// control teapot
+		{
+			const p3vec3 p0 = demoState->waypoints[demoState->currentWaypointIndex];
+			const p3vec3 p1 = demoState->waypoints[demoState->currentWaypointIndex + 1];
+			const p3vec3 h0 = demoState->waypointHandles[demoState->currentWaypointIndex];
+			const p3vec3 h1 = demoState->waypointHandles[demoState->currentWaypointIndex + 1];
+
+			if (demoState->useHermiteCurveSegments)
+				p3real3HermiteControl(demoState->pathObject->position.v, p0.v, p1.v, h0.v, h1.v, demoState->currentSegmentParam);
+			else
+				p3real3Lerp(demoState->pathObject->position.v, p0.v, p1.v, demoState->currentSegmentParam);
+		}
 	}
 
-	// control teapot
+	// DO THIS ***
+	// given current velocity (in demostate)
+	// calc target velocty (from keys or controller)
 	{
-		const p3vec3 p0 = demoState->waypoints[demoState->currentWaypointIndex];
-		const p3vec3 p1 = demoState->waypoints[demoState->currentWaypointIndex + 1];
-		const p3vec3 h0 = demoState->waypointHandles[demoState->currentWaypointIndex];
-		const p3vec3 h1 = demoState->waypointHandles[demoState->currentWaypointIndex + 1];
+		//oops
+		p3vec3 tmpCurrentVelocity = p3zeroVec3;
 
-		if (demoState->useHermiteCurveSegments)
-			p3real3HermiteControl(demoState->pathObject->position.v, p0.v, p1.v, h0.v, h1.v, demoState->currentSegmentParam);
-		else
-			p3real3Lerp(demoState->pathObject->position.v, p0.v, p1.v, demoState->currentSegmentParam);
+		p3vec3 tmpTargetVelocity = p3xVec3;
+
+		//lerp velocity towards target												// param is smoothness, acceleration kinda i think?
+		p3real3Lerp(tmpCurrentVelocity.v, tmpCurrentVelocity.v, tmpTargetVelocity.v, .35f);
+
+		// calc position by integrating velocity
+		p3vec3 tmp;
+		p3real3ProductS(tmp.v, tmpTargetVelocity.v, (float)dt);
+		p3real3Add(tmpTargetVelocity.v, tmp.v);
 	}
-
 
 
 	// controls
