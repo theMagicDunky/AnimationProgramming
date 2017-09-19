@@ -37,6 +37,7 @@ in int vInstanceID[];
 
 uniform mat4 uMVP;
 uniform vec3 uWaypoints[MAX_WAYPOINTS];
+uniform vec4 uLineColor;
 
 out vec4 vPassColor;
 
@@ -59,6 +60,6 @@ void main()
 	vec4 p1 = vec4(uWaypoints[instanceID + 1], 1.0);
 
 	// draw line segment
-	vPassColor = vec4(0.5, 0.5, 1.0, 1.0);
+	vPassColor = uLineColor;
 	drawLineSegment(p0, p1);
 }

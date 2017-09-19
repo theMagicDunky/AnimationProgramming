@@ -38,6 +38,8 @@ in int vInstanceID[];
 uniform mat4 uMVP;
 uniform vec3 uWaypoints[MAX_WAYPOINTS];
 uniform vec3 uWaypointHandles[MAX_WAYPOINTS];
+uniform vec4 uLineColor;
+uniform vec4 uCurveColor;
 
 out vec4 vPassColor;
 
@@ -109,12 +111,12 @@ void main()
 	vec4 m1 = h1 - p1;
 
 	// draw curve segment
-	vPassColor = vec4(0.5, 0.5, 1.0, 1.0);
+	vPassColor = uCurveColor;
 	drawHermiteSegment(p0, m0, p1, m1, 40);
 
 	// draw lines from points to their handles
 	// negate end handle vector for bi-directional
-	vPassColor = vec4(0.5, 0.5, 0.0, 1.0);
+	vPassColor = uLineColor;
 	drawLineSegment(p0, h0);
 	drawLineSegment(p1, p1 - m1);
 }

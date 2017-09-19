@@ -117,7 +117,7 @@ A3API a3_DemoState *a3test_load()
 	a3timerStart(demoState->renderTimer);
 
 	// text
-	a3textInitialize(demoState->text, 24, 1, 0, 0, 0);
+	a3textInitialize(demoState->text, 12, 1, 0, 0, 0);
 	demoState->textInit = demoState->showText = 1;
 
 
@@ -346,14 +346,18 @@ A3API void a3test_keyCharPress(a3_DemoState *demoState, int asciiKey)
 		break;
 
 		// reload all shaders in real-time
-	case 'l': 
+	case 'P': 
 		a3demo_unloadShaders(demoState);
 		a3demo_loadShaders(demoState);
 		break;
 
 
-	case 'h':
-		demoState->useHermiteCurveSegments = 1 - demoState->useHermiteCurveSegments;
+		// change mode
+	case '.':
+		demoState->quatDemoMode = (demoState->quatDemoMode + 1) % 12;
+		break;
+	case ',':
+		demoState->quatDemoMode = (demoState->quatDemoMode + 11) % 12;
 		break;
 	}
 }
@@ -371,6 +375,39 @@ A3API void a3test_mouseClick(a3_DemoState *demoState, int button, int cursorX, i
 	// persistent state update
 	a3mouseSetState(demoState->mouse, (a3_MouseButton)button, a3input_down);
 	a3mouseSetPosition(demoState->mouse, cursorX, cursorY);
+
+	// if using arcball, cast ray at sphere
+	if (demoState->quatDemoMode >= 6 && button == a3mouse_right)
+	{
+		// cast ray in eye space
+		a3_Ray ray[1];
+		a3_RayHit hit[1];
+
+		p3vec3 ndc = {
+			realTwo * ((float)(cursorX) / demoState->windowWidth) - realOne,
+			-realTwo * ((float)(cursorY) / demoState->windowHeight) + realOne,
+			-realOne
+		};
+		a3rayCreateUnprojected(ray, ndc, demoState->camera->projectionMatInv);
+
+		// convert to world space
+		p3real4Real4x4Mul(demoState->cameraObject->modelMat.m, ray->origin.v);
+		p3real4Real4x4Mul(demoState->cameraObject->modelMat.m, ray->direction.v);
+
+		// ray pick against sphere
+		if (a3rayTestSphere(hit, ray, demoState->arcballSphere))
+		{
+			p3real3GetUnit(demoState->raypickInitialVector.v, hit->hit0.v);
+			demoState->raypickActiveVector = demoState->raypickInitialVector;
+
+			// reset path drawing
+			demoState->rotatePathSampleCount = 0;
+			demoState->rotatePathSamples[demoState->rotatePathSampleCount++] = hit->hit0.xyz;
+
+			// copy initial orientation
+			p3real4SetReal4(demoState->arcballOriginalOrientation, demoState->arcballOrientation);
+		}
+	}
 }
 
 // mouse button is double-clicked
@@ -387,6 +424,14 @@ A3API void a3test_mouseRelease(a3_DemoState *demoState, int button, int cursorX,
 	// persistent state update
 	a3mouseSetState(demoState->mouse, (a3_MouseButton)button, a3input_up);
 	a3mouseSetPosition(demoState->mouse, cursorX, cursorY);
+
+	// stop raypicking
+	if (button == a3mouse_right)
+	{
+		demoState->rotatePathSampleCount = 0;
+		demoState->raypickInitialVector = demoState->raypickActiveVector;
+		p3real4SetReal4(demoState->arcballOriginalOrientation, demoState->arcballOrientation);
+	}
 }
 
 // mouse wheel is turned
@@ -410,6 +455,42 @@ A3API void a3test_mouseMove(a3_DemoState *demoState, int cursorX, int cursorY)
 {
 	// persistent state update
 	a3mouseSetPosition(demoState->mouse, cursorX, cursorY);
+
+	// update arcball difference
+	if (a3mouseGetState(demoState->mouse, a3mouse_right))
+	{
+		// cast ray in eye space
+		a3_Ray ray[1];
+		a3_RayHit hit[1];
+
+		p3vec3 ndc = {
+			realTwo * ((float)(cursorX) / demoState->windowWidth) - realOne,
+			-realTwo * ((float)(cursorY) / demoState->windowHeight) + realOne,
+			-realOne
+		};
+		a3rayCreateUnprojected(ray, ndc, demoState->camera->projectionMatInv);
+
+		// convert to world space
+		p3real4Real4x4Mul(demoState->cameraObject->modelMat.m, ray->origin.v);
+		p3real4Real4x4Mul(demoState->cameraObject->modelMat.m, ray->direction.v);
+
+		// ray pick against sphere
+		if (a3rayTestSphere(hit, ray, demoState->arcballSphere))
+		{
+			const unsigned int maxSamples = sizeof(demoState->rotatePathSamples) / sizeof(p3vec3);
+
+			p3real3GetUnit(demoState->raypickActiveVector.v, hit->hit0.v);
+
+			// add waypoint to curve drawing
+			demoState->rotatePathSamples[demoState->rotatePathSampleCount++] = hit->hit0.xyz;
+			if (demoState->rotatePathSampleCount >= maxSamples)
+			{
+				// start over
+				demoState->rotatePathSampleCount = 0;
+				demoState->rotatePathSamples[demoState->rotatePathSampleCount++] = demoState->rotatePathSamples[maxSamples - 1];
+			}
+		}
+	}
 }
 
 // mouse leaves window

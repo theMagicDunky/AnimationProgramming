@@ -120,10 +120,10 @@ void a3demo_loadTextures(a3_DemoState *demoState)
 void a3demo_loadGeometry(a3_DemoState *demoState)
 {
 	// static model transformations
-	static const p3mat4 downscale100x = {
-		+0.01f, 0.0f, 0.0f, 0.0f,
-		0.0f, +0.01f, 0.0f, 0.0f,
-		0.0f, 0.0f, +0.01f, 0.0f,
+	static const p3mat4 downscale20x = {
+		+0.05f, 0.0f, 0.0f, 0.0f,
+		0.0f, +0.05f, 0.0f, 0.0f,
+		0.0f, 0.0f, +0.05f, 0.0f,
 		0.0f, 0.0f, 0.0f, +1.0f,
 	};
 
@@ -142,13 +142,13 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 
 	// geometry data
 	a3_GeometryData sceneShapesData[2] = { 0 };
-	a3_GeometryData overlayShapesData[2] = { 0 };
+	a3_GeometryData overlayShapesData[4] = { 0 };
 	a3_GeometryData proceduralShapesData[1] = { 0 };
 	a3_GeometryData loadedModelsData[1] = { 0 };
-	const unsigned int sceneShapesCount = 2;
-	const unsigned int overlayShapesCount = 2;
-	const unsigned int proceduralShapesCount = 1;
-	const unsigned int loadedModelsCount = 1;
+	const unsigned int sceneShapesCount = sizeof(sceneShapesData) / sizeof(a3_GeometryData);
+	const unsigned int overlayShapesCount = sizeof(overlayShapesData) / sizeof(a3_GeometryData);
+	const unsigned int proceduralShapesCount = sizeof(proceduralShapesData) / sizeof(a3_GeometryData);
+	const unsigned int loadedModelsCount = sizeof(loadedModelsData) / sizeof(a3_GeometryData);
 
 	// common index format
 	a3_IndexFormatDescriptor sceneCommonIndexFormat[1] = { 0 };
@@ -184,10 +184,11 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	{
 		// create new data
 		a3_ProceduralGeometryDescriptor sceneShapes[2] = { a3geomShape_none };
-		a3_ProceduralGeometryDescriptor overlayShapes[1] = { a3geomShape_none };
+		a3_ProceduralGeometryDescriptor overlayShapes[4] = { a3geomShape_none };
 		a3_ProceduralGeometryDescriptor proceduralShapes[1] = { a3geomShape_none };
 
 		// static scene procedural objects
+		//	(axes and grid)
 		a3proceduralCreateDescriptorAxes(sceneShapes + 0, a3geomFlag_wireframe, 0.0f, 1);
 		a3proceduralCreateDescriptorPlane(sceneShapes + 1, a3geomFlag_wireframe, a3geomAxis_default, 32.0f, 32.0f, 32, 32);
 		for (i = 0; i < sceneShapesCount; ++i)
@@ -196,22 +197,32 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 			a3fileStreamWriteObject(fileStream, sceneShapesData + i, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 		}
 
-		// static overlay objects
-		// first, "node" or "waypoint" object, just a low-resolution sphere
-		a3proceduralCreateDescriptorSphere(overlayShapes + 0, a3geomFlag_vanilla, a3geomAxis_default, 0.1f, 8, 4);
-		a3proceduralGenerateGeometryData(overlayShapesData + 0, overlayShapes + 0);
-		a3fileStreamWriteObject(fileStream, overlayShapesData + 0, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 
 		// single-vertex shape for curve segment drawing
 		{
 			// create vertex format
-			a3_GeometryData *pointData = overlayShapesData + 1;
+			a3_GeometryData *pointData = overlayShapesData + 0;
 			a3geometryCreateVertexFormat(pointData->vertexFormat, 0, 0);
 			pointData->primType = a3prim_points;
 			pointData->numVertices = 1;
 			pointData->attribData[0] = pointData->data = malloc(3 * sizeof(float));
 			memset(pointData->data, 0, 3 * sizeof(float));
 			a3fileStreamWriteObject(fileStream, pointData, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
+		}
+
+		// static overlay objects
+		// first, "node" or "waypoint" object, just a low-resolution sphere
+		// next, a background sphere and torus or ring for a gimbal
+		demoState->arcballSphere->center = p3wVec4;
+		demoState->arcballSphere->radius = 6.0f;
+		a3proceduralCreateDescriptorSphere(overlayShapes + 1, a3geomFlag_vanilla, a3geomAxis_default, 0.1f, 8, 4);
+		a3proceduralCreateDescriptorSphere(overlayShapes + 2, a3geomFlag_vanilla, a3geomAxis_default, demoState->arcballSphere->radius, 64, 48);
+		a3proceduralCreateDescriptorCircle(overlayShapes + 3, a3geomFlag_wireframe, a3geomAxis_default, demoState->arcballSphere->radius, 64, 1);
+	//	a3proceduralCreateDescriptorTorus(overlayShapes + 3, a3geomFlag_wireframe, a3geomAxis_default, demoState->arcballSphere->radius, 0.01f, 64, 4);
+		for (i = 1; i < overlayShapesCount; ++i)
+		{
+			a3proceduralGenerateGeometryData(overlayShapesData + i, overlayShapes + i);
+			a3fileStreamWriteObject(fileStream, overlayShapesData + i, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 		}
 
 
@@ -224,7 +235,7 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 		}
 
 		// loaded models
-		a3modelLoadOBJ(loadedModelsData + 0, "../../../../resource/obj/teapot/teapot.obj", a3model_calculateVertexTangents, downscale100x.mm);
+		a3modelLoadOBJ(loadedModelsData + 0, "../../../../resource/obj/teapot/teapot.obj", a3model_calculateVertexTangents, downscale20x.mm);
 		for (i = 0; i < loadedModelsCount; ++i)
 			a3fileStreamWriteObject(fileStream, loadedModelsData + i, (a3_FileStreamWriteFunc)a3geometrySaveDataBinary);
 
@@ -294,10 +305,14 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	a3geometryGenerateVertexArray(vao, sceneShapesData + 1, vbo_ibo, sharedVertexStorage);
 	currentDrawable = demoState->draw_grid;
 	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, sceneShapesData + 1, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
-	currentDrawable = demoState->draw_node;
-	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 0, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
 	currentDrawable = demoState->draw_curve;
+	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 0, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
+	currentDrawable = demoState->draw_node;
 	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 1, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
+	currentDrawable = demoState->draw_gimbal;
+	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 2, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
+	currentDrawable = demoState->draw_ring;
+	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 3, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
 
 	// models: procedural and loaded have the same format, so they can share 
 	//	a vertex format
@@ -340,6 +355,8 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 		"uWaypointHandles",
 		"uWaypointCount",
 		"uWaypointIndex",
+		"uLineColor",
+		"uCurveColor",
 
 		// common fragment
 		"uColor",
@@ -496,6 +513,10 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 			a3shaderUniformSendFloat(a3unif_vec4, uLocation, 1, p3wVec4.v);
 		if ((uLocation = currentDemoProg->uEyePos_obj) >= 0)
 			a3shaderUniformSendFloat(a3unif_vec4, uLocation, 1, p3wVec4.v);
+		if ((uLocation = currentDemoProg->uLineColor) >= 0)
+			a3shaderUniformSendFloat(a3unif_vec4, uLocation, 1, defaultColor);
+		if ((uLocation = currentDemoProg->uCurveColor) >= 0)
+			a3shaderUniformSendFloat(a3unif_vec4, uLocation, 1, defaultColor);
 		if ((uLocation = currentDemoProg->uColor) >= 0)
 			a3shaderUniformSendFloat(a3unif_vec4, uLocation, 1, defaultColor);
 		if ((uLocation = currentDemoProg->uTex_dm) >= 0)
@@ -578,7 +599,7 @@ void a3demo_initScene(a3_DemoState *demoState)
 	demoState->sceneCamera->ctrlRotateSpeed = 5.0f;
 	demoState->sceneCamera->ctrlZoomSpeed = 5.0f;
 
-/*
+
 	// camera's starting orientation depends on "vertical" axis
 	// we want the exact same view in either case
 	if (demoState->verticalAxis)
@@ -601,10 +622,10 @@ void a3demo_initScene(a3_DemoState *demoState)
 		demoState->sceneCamera->sceneObject->euler.y = 0.0f;
 		demoState->sceneCamera->sceneObject->euler.z = 135.0f;
 	}
-*/
-	demoState->sceneCamera->sceneObject->position.x = 8.0f;
-	demoState->sceneCamera->sceneObject->position.y = 4.0f;
-	demoState->sceneCamera->sceneObject->position.z = cameraAxisPos;
+
+//	demoState->sceneCamera->sceneObject->position.x = 8.0f;
+//	demoState->sceneCamera->sceneObject->position.y = 4.0f;
+//	demoState->sceneCamera->sceneObject->position.z = cameraAxisPos;
 
 	// same fovy to start
 	demoState->sceneCamera->fovy = realSixty;
@@ -625,109 +646,28 @@ void a3demo_initScene(a3_DemoState *demoState)
 	}
 
 
-	// animation: preset a few path waypoints
-	memset(demoState->waypoints, 0, sizeof(demoState->waypoints));
-	demoState->waypointCountMax = sizeof(demoState->waypoints) / sizeof(p3vec3);
-	demoState->currentWaypointIndex = 0;
-	demoState->currentSegmentParam = 0.0f;
+	// create a short "path" of orientations using quaternions
+	//	(first and last are identity)
+	a3quatCreateIdentity(demoState->slerpPathTargets[0]);
+	a3quatCreateAxisAngle(demoState->slerpPathTargets[1], p3xVec3.v, realNinety);
+	a3quatCreateAxisAngle(demoState->slerpPathTargets[2], p3yVec3.v, realNinety);
+	a3quatCreateAxisAngle(demoState->slerpPathTargets[3], p3zVec3.v, realNinety);
+	a3quatCreateIdentity(demoState->slerpPathTargets[4]);
+	demoState->slerpPathDuration = 4.0f;
 
-	demoState->waypointCount = 4;
-	demoState->useHermiteCurveSegments = 0;
+	// initialize quaternions
+	a3quatCreateIdentity(demoState->arcballOriginalOrientation);
+	a3quatCreateIdentity(demoState->arcballOrientation);
+	a3quatCreateIdentity(demoState->arcballTargetOrientation);
+	a3quatCreateIdentity(demoState->arcballAngularVelocity);
+	a3quatCreateIdentity(demoState->arcballTargetAngularVelocity);
 
-	demoState->waypoints[0].x = 0.0f;
-	demoState->waypoints[1].x = 10.0f;
-	demoState->waypoints[2].x = 15.0f;
-	demoState->waypoints[3].x = 17.5f;
+	// smoothing factor: low is very noticeable
+	demoState->arcballTargetSmoothing = 0.125f;
 
-	demoState->waypointHandles[0].x = demoState->waypoints[0].x + 8.0f;
-	demoState->waypointHandles[1].x = demoState->waypoints[1].x + 4.0f;
-	demoState->waypointHandles[2].x = demoState->waypoints[2].x + 2.0f;
-	demoState->waypointHandles[3].x = demoState->waypoints[3].x + 1.0f;
-
-	demoState->waypointHandles[0].y = 12.0f;
-	demoState->waypointHandles[1].y = 6.0f;
-	demoState->waypointHandles[2].y = 3.0f;
-	demoState->waypointHandles[3].y = 1.5f;
-
-
-	// ****TO-DO: 
-	//	- load keyframe data if file-based (replace hard-coded data above)
-
-	demoState->pathTime = 0.0f;
-
-	demoState->waypointTimes[0] = 0.0f;
-	demoState->waypointTimes[1] = 4.20f;
-	demoState->waypointTimes[2] = 6.0f;
-	demoState->waypointTimes[3] = 8.0f;
-
-	for (i = 1; i < demoState->waypointCount; ++i)
-	{
-		demoState->segmentDurations[i - 1] = demoState->waypointTimes[i] - demoState->waypointTimes[i - 1];
-	}
-
-	// ****TO-DO: 
-	//	- generate speed control tables
-	demoState->useSpeedControl = 1;
-	demoState->samplesPerSegment = 32;
-	{
-		//algorithm:
-		//foreach segment in path
-		//	calculate samples and arc length
-		//	accumulate arc length
-		//normalize all arc length (/ total)
-		const unsigned int maxTableSamples = 256;
-		const unsigned int samplesPerSegment = demoState->samplesPerSegment;
-		const unsigned int numSegments = demoState->waypointCount - 1;
-		
-		//s is sampling index
-		unsigned int s, segmentEndIndex;
-
-		float totalArcLength;
-		float sampleDistance;
-		float t, dt = 1.0f / (float)samplesPerSegment;
-
-		p3vec3* sampleTablePtr, p0, p1, s0, s1;
-		float* arcLengthTablePtr;
-
-		// lerp tables
-		totalArcLength = 0.0f;
-
-		for (i = segmentEndIndex = 0; i < numSegments; ++i, segmentEndIndex += samplesPerSegment)
-		{
-			sampleTablePtr = demoState->pathSampleTableLerp + segmentEndIndex;
-			arcLengthTablePtr = demoState->arcLengthTableLerp + segmentEndIndex;
-
-			// sampling
-			p0 = demoState->waypoints[i];
-			p1 = demoState->waypoints[i + 1];
-
-			s1 = s0 = p0;
-
-			// first table entry
-			*sampleTablePtr = s1;
-			*arcLengthTablePtr = totalArcLength; // not param
-
-			for (s = 1, t = dt; s <= samplesPerSegment; ++s, t += dt, s0 = s1)
-			{
-				//calc next sample and distance from prev
-				//next sample is s1
-				p3real3Lerp(s1.v, p0.v, p1.v, t);
-				sampleDistance = p3real3Distance(s0.v, s1.v);
-
-				//accumulate
-				totalArcLength += sampleDistance;
-
-				*(++sampleTablePtr) = s1;
-				*(++arcLengthTablePtr) = totalArcLength;
-			}
-		}
-
-		//after all segments normalize arc length
-		for (s = 0; s < maxTableSamples; ++s)
-		{
-			demoState->arcLengthTableLerp[s] /= totalArcLength;
-		}
-	}
+	// set default joystick vectors
+	demoState->joystickInitialVector = demoState->joystickActiveVector = p3zVec3;
+	demoState->raypickInitialVector = demoState->raypickActiveVector = p3zVec3;
 }
 
 
@@ -808,129 +748,123 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 {
 	unsigned int i;
 
-
-	// ****TO-DO: 
-	//	- animate path-following object
-	//		1. add time change to total path time
-	//		2. if path time > segment end time move onto the next segment
-	//		3. calc normalized parameter for time
+	// temporary quaternion for integrating angular velocity
+	a3quat tmpVel;
 
 
-
-	// ****TO-DO	slides 7 and 29
-	//	- implement speed control sampling
-
-	if (demoState->useSpeedControl)
+	// keyframe controller for path update
 	{
-		const unsigned int segmentCount = demoState->waypointCount - 1;
-		const float pathDuration = demoState->waypointTimes[segmentCount];
-		float remapParam;		
-
-		// table pointers
-		p3vec3* sampleTablePtr;
-		float* arcLengthTablePtr;
-
-		// start and end
-		float remapStart, remapEnd;
-
-		demoState->pathTime += (float)dt;
-
-		// looping stuff here
-		if (demoState->pathTime >= pathDuration)
-			demoState->pathTime -= pathDuration;
-
-		// algorithm: remap time to distance
-		remapParam = demoState->pathTime / pathDuration;
-
-		// which 2 samples we are in between
-		// how far in between them are we
-		// lerp between samples using param ^
-		sampleTablePtr = demoState->pathSampleTableLerp;
-		arcLengthTablePtr = demoState->arcLengthTableLerp;
-
-		remapStart = arcLengthTablePtr[0];
-		remapEnd = arcLengthTablePtr[1];
-		i = 1;
-
-		// check if param is in between the two remap arch lengths (start/end)
-		while (!(remapParam >= remapStart && remapParam <= remapEnd))
+		const unsigned int slerpSegmentCount = 4;
+		const p3real slerpSegmentDuration = demoState->slerpPathDuration / (float)slerpSegmentCount;
+		demoState->slerpSegmentTime += (float)dt;
+		if (demoState->slerpSegmentTime >= slerpSegmentDuration)
 		{
-			remapStart = remapEnd;
-			remapEnd = arcLengthTablePtr[++i];
+			demoState->slerpSegmentTime -= slerpSegmentDuration;
+			demoState->slerpSegmentIndex = (demoState->slerpSegmentIndex + 1) % slerpSegmentCount;
 		}
-
-		demoState->currentSegmentParam = unlerp(remapStart, remapEnd, remapParam);
-		
-		p3real3Lerp(demoState->pathObject->position.v,
-			sampleTablePtr[i - 1].v, sampleTablePtr[i].v, demoState->currentSegmentParam);
+		demoState->slerpSegmentParam = demoState->slerpSegmentTime / slerpSegmentDuration;
 	}
 
-	else
+
+	// controller/keyboard input
 	{
-		const unsigned segmentCount = demoState->waypointCount - 1;
-		float segmentStart = demoState->waypointTimes[demoState->currentWaypointIndex];
-		float segmentEnd = demoState->waypointTimes[demoState->currentWaypointIndex + 1];
+		const float joystickMax = 0.7f;
 
-		//1
-		demoState->pathTime += (float)dt;
-
-		//2
-		if (demoState->pathTime >= demoState->waypointTimes[demoState->currentWaypointIndex + 1])
+		// ****TO-DO: 
+		// read keyboard or joystick input, calculate arcball vector
+		if (demoState->xcontrol->connected)
 		{
-			//looping behaviors
-			if (demoState->currentWaypointIndex == segmentCount)
-			{
-				demoState->pathTime -= demoState->waypointTimes[segmentCount];
-				demoState->currentWaypointIndex = 0;
-			}
-			else
-			{
-				++demoState->currentWaypointIndex;
-			}
+			double joystick[2];
+			a3XboxControlGetLeftJoystick(demoState->xcontrol, joystick);
 
-			//fix segment start and end
-			segmentStart = demoState->waypointTimes[demoState->currentWaypointIndex];
-		}	segmentEnd = demoState->waypointTimes[demoState->currentWaypointIndex + 1];
-
-		//3
-		/*
-			unlerp formula
-
-			(n - n0) / (n1 - n0)
-		*/
-		demoState->currentSegmentParam = unlerp(segmentStart, segmentEnd, demoState->pathTime);
-
-
-		// control teapot
-		{
-			const p3vec3 p0 = demoState->waypoints[demoState->currentWaypointIndex];
-			const p3vec3 p1 = demoState->waypoints[demoState->currentWaypointIndex + 1];
-			const p3vec3 h0 = demoState->waypointHandles[demoState->currentWaypointIndex];
-			const p3vec3 h1 = demoState->waypointHandles[demoState->currentWaypointIndex + 1];
-
-			if (demoState->useHermiteCurveSegments)
-				p3real3HermiteControl(demoState->pathObject->position.v, p0.v, p1.v, h0.v, h1.v, demoState->currentSegmentParam);
-			else
-				p3real3Lerp(demoState->pathObject->position.v, p0.v, p1.v, demoState->currentSegmentParam);
 		}
+		else
+		{
+
+		}
+
+		// ****TO-DO: 
+		// calculate Z value using core arcball algorithm: 
+		//	->	r^2 = x^2 + y^2 + z^2
+		//		z^2 = r^2 - x^2 - y^2
+		//		z^2 = 1 - (x^2 + y^2)	<- 2D length squared
+
 	}
 
-	// DO THIS ***
-	// given current velocity (in demostate)
-	// calc target velocty (from keys or controller)
+
+	// ****TO-DO: control orientation based on control mode
+	switch (demoState->quatDemoMode)
 	{
-		//oops
-		p3vec3 tmpCurrentVelocity = p3zeroVec3;
+		// clamp to path
+	case 0:
+		a3quatUnitSLERP(demoState->arcballOrientation,
+			demoState->slerpPathTargets[demoState->slerpSegmentIndex],
+			demoState->slerpPathTargets[demoState->slerpSegmentIndex + 1], demoState->slerpSegmentParam);
+		break;
 
-		p3vec3 tmpTargetVelocity = p3xVec3;
+		// target path
+	case 1:
+		break;
 
-		//lerp velocity towards target												// param is smoothness, acceleration kinda i think?
-		p3real3Lerp(tmpCurrentVelocity.v, tmpCurrentVelocity.v, tmpTargetVelocity.v, .35f);
 
-		// calc position by integrating velocity
-		p3vec3 tmp;
-		p3real3ProductS(tmp.v, tmpTargetVelocity.v, (float)dt);
-		p3real3Add(tmpTargetVelocity.v, tmp.v);
+		// set arcball orientation
+	case 2:
+		break;
+
+		// target arcball orientation
+	case 3:
+		break;
+
+		// set arcball angular velocity
+	case 4:
+		break;
+
+		// target arcball angular velocity
+	case 5:
+		break;
+
+
+		// set position using ray pick
+	case 6:
+		break;
+
+		// set target position using ray pick
+	case 7:
+		break;
+
+		// set angular velocity using ray pick
+	case 8:
+		break;
+
+		// set target angular velocity using ray pick
+	case 9:
+		break;
+
+
+		// set delta on arcball
+	case 10:
+		break;
+
+		// set target delta on arcball
+	case 11:
+		break;
+	}
+
+
+	// in any case normalize orientation
+	p3real4Normalize(demoState->arcballOrientation);
+
+
+	// update waypoints for drawing controls
+	if (demoState->quatDemoMode >= 2 && demoState->quatDemoMode < 6)
+	{
+		p3real3ProductS(demoState->lineEnds[1].v, demoState->joystickInitialVector.v, demoState->arcballSphere->radius);
+		p3real3ProductS(demoState->lineEnds[3].v, demoState->joystickActiveVector.v, demoState->arcballSphere->radius);
+	}
+	else if (demoState->quatDemoMode >= 6)
+	{
+		p3real3ProductS(demoState->lineEnds[1].v, demoState->raypickInitialVector.v, demoState->arcballSphere->radius);
+		p3real3ProductS(demoState->lineEnds[3].v, demoState->raypickActiveVector.v, demoState->arcballSphere->radius);
 	}
 
 
@@ -944,8 +878,8 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	);
 	if (a3mouseIsHeld(demoState->mouse, a3mouse_left))
 	{
-		const p3real azimuth = 0.0f;	// -(p3real)a3mouseGetDeltaX(demoState->mouse);
-		const p3real elevation = 0.0f;	// -(p3real)a3mouseGetDeltaY(demoState->mouse);
+		const p3real azimuth = -(p3real)a3mouseGetDeltaX(demoState->mouse);
+		const p3real elevation = -(p3real)a3mouseGetDeltaY(demoState->mouse);
 
 		// this really defines which way is "up"
 		// mouse's Y motion controls pitch, but X can control yaw or roll
@@ -966,6 +900,11 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	// update cameras
 	for (i = 0; i < demoStateMaxCount_camera; ++i)
 		a3demo_updateCameraViewProjection(demoState->camera + i);
+
+
+	// update model matrix of quaternion objects
+	a3quatConvertToMat4(demoState->rotateObject->modelMat.m, 
+		demoState->arcballOrientation, demoState->rotateObject->position.v);
 
 
 	// update input
@@ -995,6 +934,14 @@ void a3demo_render(a3_DemoState *demoState)
 	};
 
 
+	// RGB
+	const float rgba4[] = {
+		1.0f, 0.0f, 0.0f, 1.0f,
+		0.0f, 1.0f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f, 0.5f, 
+	};
+
 	// curve handle color: orange
 	const float handleColor[] = {
 		1.0f, 0.5f, 0.0f, 1.0f
@@ -1003,6 +950,11 @@ void a3demo_render(a3_DemoState *demoState)
 	// waypoint color: blue
 	const float waypointColor[] = {
 		0.0f, 0.5f, 1.0f, 1.0f
+	};
+
+	// target color: pink
+	const float targetColor[] = {
+		1.0f, 0.0f, 0.5f, 1.0f
 	};
 
 
@@ -1019,12 +971,18 @@ void a3demo_render(a3_DemoState *demoState)
 		0.0f, +1.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, +1.0f,
 	};
+	const p3mat4 convertZ2X = {
+		0.0f, 0.0f, -1.0f, 0.0f,
+		0.0f, +1.0f, 0.0f, 0.0f,
+		+1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, +1.0f,
+	};
 
 	// transformed vectors
 	p3vec4 lightPos_obj, eyePos_obj;
 
 	// final model matrix and full matrix stack
-	p3mat4 modelMat = p3identityMat4, modelMatInv = p3identityMat4, modelViewProjectionMat = p3identityMat4;
+	p3mat4 modelMatOrig, modelMat = p3identityMat4, modelMatInv = p3identityMat4, modelViewProjectionMat = p3identityMat4;
 
 	// current scene object being rendered, for convenience
 	a3_DemoSceneObject *currentSceneObject;
@@ -1047,17 +1005,18 @@ void a3demo_render(a3_DemoState *demoState)
 	currentDemoProgram = demoState->prog_drawPhong_obj;
 	a3shaderProgramActivate(currentDemoProgram->program);
 
-/*	
+	
 	currentDrawable = demoState->draw_teapot;
-	currentSceneObject = demoState->teapotObject;
+	currentSceneObject = demoState->rotateObject;
 	if (!useVerticalY)	// teapot's axis is Y
 	{
-		p3real4x4ProductTransform(modelMat.m, convertY2Z.m, currentSceneObject->modelMat.m);
+		modelMatOrig = currentSceneObject->modelMat;
+		p3real4x4ProductTransform(modelMat.m, modelMatOrig.m, convertY2Z.m);
 		p3real4x4TransformInverseIgnoreScale(modelMatInv.m, modelMat.m);
 	}
 	else
 	{
-		modelMat = currentSceneObject->modelMat;
+		modelMatOrig = modelMat = currentSceneObject->modelMat;
 		modelMatInv = currentSceneObject->modelMatInv;
 	}
 	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
@@ -1068,34 +1027,6 @@ void a3demo_render(a3_DemoState *demoState)
 	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uEyePos_obj, 1, eyePos_obj.v);
 	a3textureActivate(demoState->tex_checker, a3tex_unit00);
 	a3textureActivate(demoState->tex_checker, a3tex_unit01);
-	a3vertexActivateAndRenderDrawable(currentDrawable);
-*/
-
-//	currentDrawable = demoState->draw_sphere;
-//	a3textureActivate(demoState->tex_earth_dm, a3tex_unit00);
-//	a3textureActivate(demoState->tex_earth_sm, a3tex_unit01);
-
-	currentDrawable = demoState->draw_teapot;
-	a3textureActivate(demoState->tex_checker, a3tex_unit00);
-	a3textureActivate(demoState->tex_checker, a3tex_unit01);
-
-	currentSceneObject = demoState->pathObject;
-	if (useVerticalY)	// sphere's axis is Z
-	{
-		p3real4x4ProductTransform(modelMat.m, convertZ2Y.m, currentSceneObject->modelMat.m);
-		p3real4x4TransformInverseIgnoreScale(modelMatInv.m, modelMat.m);
-	}
-	else
-	{
-		modelMat = currentSceneObject->modelMat;
-		modelMatInv = currentSceneObject->modelMatInv;
-	}
-	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
-	p3real4TransformProduct(lightPos_obj.v, modelMatInv.m, demoState->lightObject->modelMat.v3.v);
-	p3real4TransformProduct(eyePos_obj.v, modelMatInv.m, demoState->cameraObject->modelMat.v3.v);
-	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uLightPos_obj, 1, lightPos_obj.v);
-	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uEyePos_obj, 1, eyePos_obj.v);
 	a3vertexActivateAndRenderDrawable(currentDrawable);
 
 
@@ -1112,57 +1043,136 @@ void a3demo_render(a3_DemoState *demoState)
 
 
 	// overlay items
-	glDisable(GL_DEPTH_TEST);
-
-	// draw curve segments
-	if (demoState->useHermiteCurveSegments)
-		currentDemoProgram = demoState->prog_drawCurve;
-	else
-		currentDemoProgram = demoState->prog_drawLine;
-	a3shaderProgramActivate(currentDemoProgram->program);
-	modelViewProjectionMat = demoState->camera->viewProjectionMat;
-	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-	a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypoints, demoState->waypointCount, demoState->waypoints->v);
-	a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypointHandles, demoState->waypointCount, demoState->waypointHandles->v);
-//	a3shaderUniformSendInt(a3unif_single, currentDemoProgram->uWaypointCount, 1, &demoState->waypointCount);
-//	a3shaderUniformSendInt(a3unif_single, currentDemoProgram->uWaypointIndex, 1, &demoState->currentWaypointIndex);
-
-	// render segments if there are enough waypoints
-	currentDrawable = demoState->draw_curve;
-	if (demoState->waypointCount > 1)
-		a3vertexActivateAndRenderDrawableInstanced(currentDrawable, demoState->waypointCount - 1);
-
-	// draw waypoints
+	
+	// draw gimbal
 	currentDemoProgram = demoState->prog_drawColorUnif;
 	a3shaderProgramActivate(currentDemoProgram->program);
-	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, waypointColor);
 
-	modelMat = p3identityMat4;
-	currentDrawable = demoState->draw_node;
+	glCullFace(GL_FRONT);
+	currentDrawable = demoState->draw_gimbal;
 	a3vertexActivateDrawable(currentDrawable);
-	for (i = 0; i < demoState->waypointCount; ++i)
-	{
-		modelMat.v3.xyz = demoState->waypoints[i];
-		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
-		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-		a3vertexRenderActiveDrawable();
-	}
+	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 12);
+	a3vertexRenderActiveDrawable();
+	glCullFace(GL_BACK);
 
-	// draw handles
-	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, handleColor);
-
-	modelMat = p3identityMat4;
-	currentDrawable = demoState->draw_node;
+	currentDrawable = demoState->draw_ring;
 	a3vertexActivateDrawable(currentDrawable);
-	for (i = 0; i < demoState->waypointCount; ++i)
-	{
-		modelMat.v3.xyz = demoState->waypointHandles[i];
-		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
-		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-		a3vertexRenderActiveDrawable();
-	}
+	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 8);
+	a3vertexRenderActiveDrawable();
+	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+	p3real4x4ConcatL(modelViewProjectionMat.m, convertZ2Y.m);
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 4);
+	a3vertexRenderActiveDrawable();
+	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+	p3real4x4ConcatL(modelViewProjectionMat.m, convertZ2X.m);
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 0);
+	a3vertexRenderActiveDrawable();
 
-	glEnable(GL_DEPTH_TEST);
+
+	// overlays
+	if (demoState->quatDemoMode >= 2)
+	{
+		const int rmbDown = a3mouseGetState(demoState->mouse, a3mouse_right);
+
+		glDisable(GL_DEPTH_TEST);
+
+		// draw line segments
+		currentDemoProgram = demoState->prog_drawLine;
+		modelViewProjectionMat = demoState->camera->viewProjectionMat;
+		a3shaderProgramActivate(currentDemoProgram->program);
+		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+
+		// render segments if there are enough waypoints
+		if (demoState->quatDemoMode >= 6 && rmbDown || demoState->quatDemoMode < 6)
+		{
+			currentDrawable = demoState->draw_curve;
+			a3vertexActivateDrawable(currentDrawable);
+			a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uLineColor, 1, handleColor);
+			a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypoints, 2, demoState->lineEnds[0].v);
+			a3vertexRenderActiveDrawable();
+			a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypoints, 2, demoState->lineEnds[2].v);
+			a3vertexRenderActiveDrawable();
+		}
+
+		// render raypicking path
+		if (demoState->quatDemoMode >= 6 && rmbDown && demoState->rotatePathSampleCount)
+		{
+			a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uLineColor, 1, targetColor);
+			a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypoints, demoState->rotatePathSampleCount, demoState->rotatePathSamples->v);
+			a3vertexRenderActiveDrawableInstanced(demoState->rotatePathSampleCount - 1);
+		}
+
+		// draw waypoints
+		currentDemoProgram = demoState->prog_drawColorUnif;
+		a3shaderProgramActivate(currentDemoProgram->program);
+		a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, waypointColor);
+
+		modelMat = p3identityMat4;
+		currentDrawable = demoState->draw_node;
+		a3vertexActivateDrawable(currentDrawable);
+		for (i = 0; i < 4; ++i)
+		{
+			modelMat.v3.xyz = demoState->lineEnds[i];
+			p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
+			a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+			a3vertexRenderActiveDrawable();
+		}
+
+		glEnable(GL_DEPTH_TEST);
+
+
+		// draw original shape in trackball mode
+		if (demoState->quatDemoMode >= 10 && rmbDown)
+		{
+			// redraw object
+			currentDemoProgram = demoState->prog_drawColorUnif;
+			a3shaderProgramActivate(currentDemoProgram->program);
+			a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 12);
+	
+			currentDrawable = demoState->draw_teapot;
+			currentSceneObject = demoState->rotateObject;
+			if (!useVerticalY)	// teapot's axis is Y
+			{
+				a3quatConvertToMat4(modelMatOrig.m,
+					demoState->arcballOriginalOrientation, demoState->rotateObject->position.v);
+				p3real4x4ProductTransform(modelMat.m, modelMatOrig.m, convertY2Z.m);
+			}
+			else
+			{
+				a3quatConvertToMat4(modelMatOrig.m,
+					demoState->arcballOriginalOrientation, demoState->rotateObject->position.v);
+				modelMat = modelMatOrig;
+			}
+
+			glCullFace(GL_FRONT);
+			p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
+			a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+			a3vertexActivateAndRenderDrawable(currentDrawable);
+			glCullFace(GL_BACK);
+
+
+			// redraw gimbal rings
+			currentDrawable = demoState->draw_ring;
+			a3vertexActivateDrawable(currentDrawable);
+			p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+			a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+			a3vertexRenderActiveDrawable();
+			p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+			p3real4x4ConcatL(modelViewProjectionMat.m, convertZ2Y.m);
+			a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+			a3vertexRenderActiveDrawable();
+			p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+			p3real4x4ConcatL(modelViewProjectionMat.m, convertZ2X.m);
+			a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+			a3vertexRenderActiveDrawable();
+		}
+	}
 
 
 	// draw coordinate axes in front of everything
@@ -1184,17 +1194,75 @@ void a3demo_render(a3_DemoState *demoState)
 	// HUD
 	if (demoState->textInit && demoState->showText)
 	{
-		const char *curveTypeText = demoState->useHermiteCurveSegments ? "Hermite" : "Lines";
+		const char *quatDemoModeText[] = {
+			"Set position    (orientation path)",
+			"Target position (orientation path)",
+			"Set position    (controller/keyboard input; left joystick / IJKL)",
+			"Target position (controller/keyboard input; left joystick / IJKL)",
+			"Set velocity    (controller/keyboard input; left joystick / IJKL)",
+			"Target velocity (controller/keyboard input; left joystick / IJKL)",
+			"Set position    (arcball mouse input; right click & drag)",
+			"Target position (arcball mouse input; right click & drag)",
+			"Set velocity    (arcball mouse input; right click & drag)",
+			"Target velocity (arcball mouse input; right click & drag)",
+			"Set position    (trackball mouse input; right click & drag)",
+			"Target position (trackball mouse input; right click & drag)",
+		};
+
+		p3vec3 axis;
+		p3real angle;
+
 		glDisable(GL_DEPTH_TEST);
+
+		// print mode
 		a3textDraw(demoState->text,
-			-0.9f, -0.7f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			"Path type (toggle = \'h\'): %s", curveTypeText);
+			-0.98f, +0.95f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 
+			"Quaternion demo control mode %u / 12 (toggles = ','/'.'): ", (demoState->quatDemoMode + 1));
 		a3textDraw(demoState->text,
-			-0.9f, -0.8f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			"Path segment: %u	Duration: %f", demoState->currentWaypointIndex, demoState->segmentDurations[demoState->currentWaypointIndex]);
+			-0.98f, +0.90f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"    %s", quatDemoModeText[demoState->quatDemoMode]);
+
 		a3textDraw(demoState->text,
-			-0.9f, -0.9f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			"Path time: %f	Segment param: %f", demoState->pathTime, demoState->currentSegmentParam);
+			-0.98f, +0.85f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"Target smoothing: %f", demoState->arcballTargetSmoothing);
+
+		// print quaternion values
+		a3quatGetAxisAngle(axis.v, &angle, demoState->arcballOrientation);
+		a3textDraw(demoState->text,
+			-0.98f, -0.30f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"Arcball orientation (xyzw): ");
+		a3textDraw(demoState->text,
+			-0.98f, -0.35f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"    q = (%f, %f, %f, %f)", demoState->arcballOrientation[0], demoState->arcballOrientation[1], demoState->arcballOrientation[2], demoState->arcballOrientation[3]);
+		a3textDraw(demoState->text,
+			-0.98f, -0.40f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"    axis = (%f, %f, %f), angle = %f degrees", axis.x, axis.y, axis.z, angle);
+
+		a3textDraw(demoState->text,
+			-0.98f, -0.50f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"Arcball angular velocity: ");
+		a3textDraw(demoState->text,
+			-0.98f, -0.55f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"    q' = (%f, %f, %f, %f)", demoState->arcballAngularVelocity[0], demoState->arcballAngularVelocity[1], demoState->arcballAngularVelocity[2], demoState->arcballAngularVelocity[3]);
+
+		a3quatGetAxisAngle(axis.v, &angle, demoState->arcballTargetOrientation);
+		a3textDraw(demoState->text,
+			-0.98f, -0.70f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"Arcball target orientation: ");
+		a3textDraw(demoState->text,
+			-0.98f, -0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"    Q = (%f, %f, %f, %f)", demoState->arcballTargetOrientation[0], demoState->arcballTargetOrientation[1], demoState->arcballTargetOrientation[2], demoState->arcballTargetOrientation[3]);
+		a3textDraw(demoState->text,
+			-0.98f, -0.80f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"    axis = (%f, %f, %f), angle = %f degrees", axis.x, axis.y, axis.z, angle);
+
+		a3textDraw(demoState->text,
+			-0.98f, -0.90f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"Arcball target angular velocity: ");
+		a3textDraw(demoState->text,
+			-0.98f, -0.95f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			"    Q' = (%f, %f, %f, %f)", demoState->arcballTargetAngularVelocity[0], demoState->arcballTargetAngularVelocity[1], demoState->arcballTargetAngularVelocity[2], demoState->arcballTargetAngularVelocity[3]);
+
 		glEnable(GL_DEPTH_TEST);
 	}
 }

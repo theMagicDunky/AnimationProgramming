@@ -40,6 +40,8 @@
 // other demo includes
 
 #include "_utilities/a3_DemoSceneObject.h"
+#include "_utilities/a3_RayPicking.h"
+#include "_utilities/a3_Quaternion.h"
 
 
 //-----------------------------------------------------------------------------
@@ -93,6 +95,8 @@ extern "C"
 					uWaypointHandles,			// all waypoint handle data for Hermite curves
 					uWaypointCount,				// number of path waypoints
 					uWaypointIndex,				// index of current path waypoint
+					uLineColor,					// line segment color
+					uCurveColor,				// curve segment color
 
 					// common fragment shader uniforms
 					uColor,						// uniform color
@@ -145,33 +149,40 @@ extern "C"
 
 		//---------------------------------------------------------------------
 		// animation variables and objects
-
-		// path waypoints
-		p3vec3 waypoints[64];
-		p3vec3 waypointHandles[64];
-		float waypointTimes[64];		//in global time where waypoint starts
-		float segmentDurations[64];		//distance in time between segments
-		unsigned int waypointCount, waypointCountMax;
-		unsigned int currentWaypointIndex;
-		float currentSegmentParam;
-		int useHermiteCurveSegments;
-
-
-		// ****TO-DO: 
-		//	- add anything else required for waypoint controller
-		//		-> it's a keyframe controller; time is important!
-		//		-> what else? looping behaviors?
-		float pathTime;
-
-
-		// ****TO-DO: 
-		//	- add sample table(s) for speed control
-		//	- add other pertinent values for speed control
-		int useSpeedControl;
-		unsigned int samplesPerSegment;
-		float arcLengthTableLerp[256], arcLengthTableHermite[256];
-		p3vec3 pathSampleTableLerp[256], pathSampleTableHermite[256];
 		
+		// quaternion demo mode
+		int quatDemoMode;
+
+		// waypoint set for drawing pairs of lines
+		//	(and visualizing quaternion results)
+		p3vec3 lineEnds[4];
+		p3vec3 rotatePathSamples[64];
+		unsigned int rotatePathSampleCount;
+
+		// arcball sphere properties
+		a3_Sphere arcballSphere[1];
+		a3quat arcballOriginalOrientation;
+		a3quat arcballOrientation;
+		a3quat arcballTargetOrientation;
+		a3quat arcballAngularVelocity;
+		a3quat arcballTargetAngularVelocity;
+		p3real arcballTargetSmoothing;
+
+		// ****TO-DO: SLERP path test
+		a3quat slerpPathTargets[5];
+		float slerpPathDuration;
+		float slerpSegmentTime;
+		float slerpSegmentParam;
+		unsigned int slerpSegmentIndex;
+
+		// ****TO-DO: ARCBALL 1: joystick
+		p3vec3 joystickInitialVector;
+		p3vec3 joystickActiveVector;
+
+		// ****TO-DO: ARCBALL 2: ray-picking
+		p3vec3 raypickInitialVector;
+		p3vec3 raypickActiveVector;
+
 
 		//---------------------------------------------------------------------
 		// object arrays: organized as anonymous unions for two reasons: 
@@ -186,7 +197,7 @@ extern "C"
 				a3_DemoSceneObject
 					cameraObject[1],					// transform for camera
 					lightObject[1],						// transform for light
-					pathObject[1];						// transform for path-follower (teapot or earth)
+					rotateObject[1];					// quaternion SLERPing object
 			};
 		};
 
@@ -249,8 +260,10 @@ extern "C"
 				a3_VertexDrawable
 					draw_grid[1],								// wireframe ground plane to emphasize scaling
 					draw_axes[1],								// coordinate axes at the center of the world
-					draw_node[1],								// small round shape for a node or waypoint
 					draw_curve[1],								// single-vertex shape used for drawing curve segments
+					draw_node[1],								// small round shape for a node or waypoint
+					draw_gimbal[1],								// gimbal background
+					draw_ring[1],								// gimbal ring (torus or ring)
 					draw_sphere[1],								// procedural sphere
 					draw_teapot[1];								// loaded teapot model
 			};

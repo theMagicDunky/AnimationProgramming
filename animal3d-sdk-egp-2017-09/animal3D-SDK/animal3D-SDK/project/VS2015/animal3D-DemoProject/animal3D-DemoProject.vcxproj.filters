@@ -63,6 +63,12 @@
     <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_DemoSceneObject.c">
       <Filter>Source Files\common\A3_DEMO\_utilities</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_RayPicking.c">
+      <Filter>Source Files\common\A3_DEMO\_utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Quaternion.c">
+      <Filter>Source Files\common\A3_DEMO\_utilities</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\a3_dylib_config_export.h">
@@ -72,6 +78,12 @@
       <Filter>Header Files\A3_DEMO</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_DemoSceneObject.h">
+      <Filter>Header Files\A3_DEMO\_utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_RayPicking.h">
+      <Filter>Header Files\A3_DEMO\_utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Quaternion.h">
       <Filter>Header Files\A3_DEMO\_utilities</Filter>
     </ClInclude>
   </ItemGroup>
