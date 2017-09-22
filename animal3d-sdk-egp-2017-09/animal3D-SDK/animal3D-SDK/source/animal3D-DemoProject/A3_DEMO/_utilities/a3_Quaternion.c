@@ -192,16 +192,43 @@ extern inline int a3quatUnitSLERP(a3quatp qSlerp_out, const a3quatp q0_unit, con
 		// theta = acos(q0 dot q1)
 
 		float d = p3real4Dot(q0_unit, q1_unit);
+		a3quat q1b;
+		const p3real* q1ptr = q1_unit;
 
-		float theta = p3acosd(d);
-		float sInv = 1.0f / p3sind(theta);
-		float s0 = p3sind((1.0f - t)*theta);
-		float s1 = p3sind(t * theta);
+		if (d < 0)
+		{
+			d = -d;
+			p3real4GetNegative(q1b, q1_unit);
+			q1ptr = q1b;
+		}
 
-		qSlerp_out[0] = s0 * q0_unit[0] + s1 * q1_unit[0];
-		qSlerp_out[1] = s0 * q0_unit[1] + s1 * q1_unit[1];
-		qSlerp_out[2] = s0 * q0_unit[2] + s1 * q1_unit[2];
-		qSlerp_out[3] = s0 * q0_unit[3] + s1 * q1_unit[3];
+		// evaluate slerp cases
+		if (d < 1.0f)
+		{
+			float theta = p3acosd(d);
+			float sInv = 1.0f / p3sind(theta);
+			float s0 = p3sind((1.0f - t)*theta);
+			float s1 = p3sind(t * theta);
+
+			qSlerp_out[0] = s0 * q0_unit[0] + s1 * q1ptr[0];
+			qSlerp_out[1] = s0 * q0_unit[1] + s1 * q1ptr[1];
+			qSlerp_out[2] = s0 * q0_unit[2] + s1 * q1ptr[2];
+			qSlerp_out[3] = s0 * q0_unit[3] + s1 * q1ptr[3];
+		}
+
+		else if (d > 1.0f)
+		{
+			// nlerp if "over-parallel"
+			// can happen due to floating point errors
+			p3real4Lerp(qSlerp_out, q0_unit, q1ptr, t);
+			p3real4Normalize(qSlerp_out);
+		}
+
+		else
+		{
+			// q0 if equal
+			p3real4SetReal4(qSlerp_out, q0_unit);
+		}
 
 		// done
 		return 1;

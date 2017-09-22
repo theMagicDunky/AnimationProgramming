@@ -804,11 +804,21 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 
 		// target path
 	case 1:
+		// have target follow path
+		a3quatUnitSLERP(demoState->arcballTargetOrientation,
+			demoState->slerpPathTargets[demoState->slerpSegmentIndex],
+			demoState->slerpPathTargets[demoState->slerpSegmentIndex + 1], demoState->slerpSegmentParam);
+
+		// interpolate actual orientation towards target
+		a3quatUnitSLERP(demoState->arcballOrientation,
+			demoState->arcballOrientation,
+			demoState->arcballTargetOrientation, demoState->arcballTargetSmoothing);
 		break;
 
 
 		// set arcball orientation
 	case 2:
+		// quat between joystick inital and current
 		break;
 
 		// target arcball orientation
