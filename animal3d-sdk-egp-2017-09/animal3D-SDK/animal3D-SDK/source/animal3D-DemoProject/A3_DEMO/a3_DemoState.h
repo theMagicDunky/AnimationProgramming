@@ -149,39 +149,40 @@ extern "C"
 
 		//---------------------------------------------------------------------
 		// animation variables and objects
-		
-		// quaternion demo mode
-		int quatDemoMode;
+
+		// orientation update mode
+		unsigned int orientationMode;
 
 		// waypoint set for drawing pairs of lines
-		//	(and visualizing quaternion results)
 		p3vec3 lineEnds[4];
-		p3vec3 rotatePathSamples[64];
-		unsigned int rotatePathSampleCount;
 
-		// arcball sphere properties
-		a3_Sphere arcballSphere[1];
-		a3quat arcballOriginalOrientation;
-		a3quat arcballOrientation;
-		a3quat arcballTargetOrientation;
-		a3quat arcballAngularVelocity;
-		a3quat arcballTargetAngularVelocity;
-		p3real arcballTargetSmoothing;
+		// ****TO-DO: construct physical path using Hermite curves
+		p3real3 waypoints[16];
+		p3real3 waypointTangents[16];
+		p3real3 waypointHandles[16];
+		float waypointTimes[16];
+		unsigned int waypointCount;
 
-		// ****TO-DO: SLERP path test
-		a3quat slerpPathTargets[5];
-		float slerpPathDuration;
-		float slerpSegmentTime;
-		float slerpSegmentParam;
-		unsigned int slerpSegmentIndex;
+		// controller
+		float pathTime;
+		float pathDuration;
+		float sampleParam, segmentParam;
+		unsigned int sampleIndex, segmentIndex;
 
-		// ****TO-DO: ARCBALL 1: joystick
-		p3vec3 joystickInitialVector;
-		p3vec3 joystickActiveVector;
+		// ****TO-DO: mode 1: calculate Frenet-Serret frame on pre-sampled path
+		//	-> use constant "world up" vector as control
+		//	-> use vector between samples as tangent
+		unsigned int pathSamplesPerSegment;
+		float pathArcLengthTable[1024];
+		p3vec3 pathSampleTable[1024];
+		float pathArcLengthAtWaypointsTable[16];
 
-		// ****TO-DO: ARCBALL 2: ray-picking
-		p3vec3 raypickInitialVector;
-		p3vec3 raypickActiveVector;
+		// ****TO-DO: mode 2: calculate Frenet-Serret frame, method 2
+		//	-> approximate up vector at each waypoint
+		//	-> store previous position to calculate tangent
+		p3vec3 prevPosition;
+
+		// ****TO-DO: mode 3: construct orientation path, calculate quaternion
 
 
 		//---------------------------------------------------------------------
@@ -197,7 +198,7 @@ extern "C"
 				a3_DemoSceneObject
 					cameraObject[1],					// transform for camera
 					lightObject[1],						// transform for light
-					rotateObject[1];					// quaternion SLERPing object
+					coasterObject[1];					// moving object
 			};
 		};
 

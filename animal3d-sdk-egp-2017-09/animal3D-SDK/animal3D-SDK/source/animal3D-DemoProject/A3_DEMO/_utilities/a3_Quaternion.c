@@ -51,14 +51,6 @@ extern inline int a3quatCreateAxisAngle(a3quatp q_out, const p3real3p axis_unit,
 		// ****TO-DO: implement
 		// v = sin(angle / 2) * n
 		// w = cos(angle / 2)
-		const float halfAngle = 0.5f * angle_degrees;
-		const float c = p3cosd(halfAngle);
-		const float s = p3sind(halfAngle);
-
-		q_out[0] = s * axis_unit[0]; //x
-		q_out[1] = s * axis_unit[1]; //y
-		q_out[2] = s * axis_unit[2]; //z
-		q_out[3] = c;				 //w
 
 		// done
 		return 1;
@@ -77,8 +69,6 @@ extern inline int a3quatCreateDelta(a3quatp q_out, const p3real3p v0_unit, const
 		//	-> a cross b = sin(angle) * n
 		// Since a quaternion uses half angle, we can solve by using 
 		//	the unit halfway vector as 'b'!!!
-
-
 
 		// done
 		return 1;
@@ -187,48 +177,6 @@ extern inline int a3quatUnitSLERP(a3quatp qSlerp_out, const a3quatp q0_unit, con
 		// ****TO-DO: implement
 		// PRO TIP: if "angle" is negative, flip second quaternion
 		// PRO TIP: raw SLERP formula is not enough; what if inputs are parallel?
-		
-		// q = ((sin(1-t)theta)q0 + sin(t(theta))q1) / sin(theta)
-		// theta = acos(q0 dot q1)
-
-		float d = p3real4Dot(q0_unit, q1_unit);
-		a3quat q1b;
-		const p3real* q1ptr = q1_unit;
-
-		if (d < 0)
-		{
-			d = -d;
-			p3real4GetNegative(q1b, q1_unit);
-			q1ptr = q1b;
-		}
-
-		// evaluate slerp cases
-		if (d < 1.0f)
-		{
-			float theta = p3acosd(d);
-			float sInv = 1.0f / p3sind(theta);
-			float s0 = p3sind((1.0f - t)*theta);
-			float s1 = p3sind(t * theta);
-
-			qSlerp_out[0] = s0 * q0_unit[0] + s1 * q1ptr[0];
-			qSlerp_out[1] = s0 * q0_unit[1] + s1 * q1ptr[1];
-			qSlerp_out[2] = s0 * q0_unit[2] + s1 * q1ptr[2];
-			qSlerp_out[3] = s0 * q0_unit[3] + s1 * q1ptr[3];
-		}
-
-		else if (d > 1.0f)
-		{
-			// nlerp if "over-parallel"
-			// can happen due to floating point errors
-			p3real4Lerp(qSlerp_out, q0_unit, q1ptr, t);
-			p3real4Normalize(qSlerp_out);
-		}
-
-		else
-		{
-			// q0 if equal
-			p3real4SetReal4(qSlerp_out, q0_unit);
-		}
 
 		// done
 		return 1;
@@ -262,29 +210,6 @@ extern inline int a3quatConvertToMat4(p3real4x4p m_out, const a3quatp q, const p
 		// same as above but copy translate into fourth column
 		//	and setting bottom row to (0, 0, 0, 1)
 		// NOTE: matrices are COLUMN-MAJOR
-
-		//squares
-		const float WW = q[3] * q[3], XX = q[0] * q[0], YY = q[1] * q[1], ZZ = q[2] * q[2];
-		const float XY2 = q[0] * q[1] * 2.0f, XZ2 = q[0] * q[2] * 2.0f, YZ2 = q[1] * q[2] * 2.0f, WX2 = q[3] * q[0] * 2.0f, WY2 = q[3] * q[1] * 2.0f, WZ2 = q[2] * q[3] * 2.0f;
-
-		m_out[0][0] = WW + XX - YY - ZZ;
-		m_out[0][1] = XY2 + WZ2;
-		m_out[0][2] = XZ2 - WY2;
-
-		m_out[1][0] = XY2 - WZ2;
-		m_out[1][1] = WW - XX + YY - ZZ;
-		m_out[1][2] = YZ2 + WX2;
-
-		m_out[2][0] = XZ2 + WY2;
-		m_out[2][1] = YZ2 - WX2;
-		m_out[2][2] = WW - XX - YY + ZZ;
-
-		m_out[3][0] = translate[0];
-		m_out[3][1] = translate[1];
-		m_out[3][2] = translate[2];
-
-		m_out[0][3] = m_out[1][3] = m_out[2][3] = 0.0f;
-		m_out[3][3] = 1.0f;
 
 		// done
 		return 1;
