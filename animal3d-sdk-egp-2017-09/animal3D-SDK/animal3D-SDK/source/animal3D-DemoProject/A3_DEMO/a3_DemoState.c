@@ -142,7 +142,7 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 
 	// geometry data
 	a3_GeometryData sceneShapesData[2] = { 0 };
-	a3_GeometryData overlayShapesData[4] = { 0 };
+	a3_GeometryData overlayShapesData[6] = { 0 };
 	a3_GeometryData proceduralShapesData[1] = { 0 };
 	a3_GeometryData loadedModelsData[1] = { 0 };
 	const unsigned int sceneShapesCount = sizeof(sceneShapesData) / sizeof(a3_GeometryData);
@@ -184,7 +184,7 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	{
 		// create new data
 		a3_ProceduralGeometryDescriptor sceneShapes[2] = { a3geomShape_none };
-		a3_ProceduralGeometryDescriptor overlayShapes[4] = { a3geomShape_none };
+		a3_ProceduralGeometryDescriptor overlayShapes[6] = { a3geomShape_none };
 		a3_ProceduralGeometryDescriptor proceduralShapes[1] = { a3geomShape_none };
 
 		// static scene procedural objects
@@ -213,9 +213,12 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 		// static overlay objects
 		// first, "node" or "waypoint" object, just a low-resolution sphere
 		// next, a background sphere and torus or ring for a gimbal
+		// finally, bone and node shapes
 		a3proceduralCreateDescriptorSphere(overlayShapes + 1, a3geomFlag_vanilla, a3geomAxis_default, 0.1f, 8, 4);
 		a3proceduralCreateDescriptorSphere(overlayShapes + 2, a3geomFlag_vanilla, a3geomAxis_default, 1.0f, 16, 12);
 		a3proceduralCreateDescriptorCircle(overlayShapes + 3, a3geomFlag_wireframe, a3geomAxis_default, 1.0f, 16, 1);
+		a3proceduralCreateDescriptorCone(overlayShapes + 4, a3geomFlag_wireframe, a3geomAxis_default, 0.05f, 1.0f, 4, 1, 1);
+		a3proceduralCreateDescriptorSphere(overlayShapes + 5, a3geomFlag_wireframe, a3geomAxis_default, 0.05f, 4, 2);
 		for (i = 1; i < overlayShapesCount; ++i)
 		{
 			a3proceduralGenerateGeometryData(overlayShapesData + i, overlayShapes + i);
@@ -310,6 +313,10 @@ void a3demo_loadGeometry(a3_DemoState *demoState)
 	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 2, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
 	currentDrawable = demoState->draw_ring;
 	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 3, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
+	currentDrawable = demoState->draw_bone;
+	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 4, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
+	currentDrawable = demoState->draw_joint;
+	sharedVertexStorage += a3geometryGenerateDrawable(currentDrawable, overlayShapesData + 5, vao, vbo_ibo, sceneCommonIndexFormat, 0, 0);
 
 	// models: procedural and loaded have the same format, so they can share 
 	//	a vertex format
@@ -344,6 +351,7 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 	const char *uniformNames[demoStateMaxCount_shaderProgramUniform] = {
 		// common vertex
 		"uMVP",
+		"uLocal",
 		"uLightPos_obj",
 		"uEyePos_obj",
 
@@ -375,7 +383,9 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 			// vertex shaders
 			a3_Shader passInstanceID_vs[1];
 			a3_Shader passthru_transform_vs[1];
+			a3_Shader passthru_transform_instanced_vs[1];
 			a3_Shader passColor_transform_vs[1];
+			a3_Shader passColor_transform_instanced_vs[1];
 			a3_Shader passTexcoord_transform_vs[1];
 			a3_Shader passPhong_obj_transform_vs[1];
 
@@ -400,7 +410,9 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 	} shaderDescriptor[] = {
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passInstanceID_vs4x.glsl" },
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passthru_transform_vs4x.glsl" },
+		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passthru_transform_instanced_vs4x.glsl" },
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passColor_transform_vs4x.glsl" },
+		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passColor_transform_instanced_vs4x.glsl" },
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passTexcoord_transform_vs4x.glsl" },
 		{ a3shader_vertex,		"../../../../resource/glsl/4x/vs/passPhong_obj_transform_vs4x.glsl" },
 
@@ -432,17 +444,29 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 	//	- create program object
 	//	- attach shader objects
 
+	// color attrib program
+	currentDemoProg = demoState->prog_drawColor;
+	a3shaderProgramCreate(currentDemoProg->program);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.passColor_transform_vs);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawColorAttrib_fs);
+
+	// color attrib instanced program
+	currentDemoProg = demoState->prog_drawColorInstanced;
+	a3shaderProgramCreate(currentDemoProg->program);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.passColor_transform_instanced_vs);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawColorAttrib_fs);
+
 	// uniform color program
 	currentDemoProg = demoState->prog_drawColorUnif;
 	a3shaderProgramCreate(currentDemoProg->program);
 	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.passthru_transform_vs);
 	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawColorUnif_fs);
 
-	// color attrib program
-	currentDemoProg = demoState->prog_drawColor;
+	// uniform color instanced program
+	currentDemoProg = demoState->prog_drawColorUnifInstanced;
 	a3shaderProgramCreate(currentDemoProg->program);
-	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.passColor_transform_vs);
-	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawColorAttrib_fs);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.passthru_transform_instanced_vs);
+	a3shaderProgramAttachShader(currentDemoProg->program, shaderList.drawColorUnif_fs);
 
 	// texturing program
 	currentDemoProg = demoState->prog_drawTexture;
@@ -505,6 +529,8 @@ void a3demo_loadShaders(a3_DemoState *demoState)
 		// set default values for all programs that have a uniform that will 
 		//	either never change or is consistent for all programs
 		if ((uLocation = currentDemoProg->uMVP) >= 0)
+			a3shaderUniformSendFloatMat(a3unif_mat4, 0, uLocation, 1, p3identityMat4.mm);
+		if ((uLocation = currentDemoProg->uLocal) >= 0)
 			a3shaderUniformSendFloatMat(a3unif_mat4, 0, uLocation, 1, p3identityMat4.mm);
 		if ((uLocation = currentDemoProg->uLightPos_obj) >= 0)
 			a3shaderUniformSendFloat(a3unif_vec4, uLocation, 1, p3wVec4.v);
@@ -575,11 +601,149 @@ void a3demo_unloadShaders(a3_DemoState *demoState)
 
 //-----------------------------------------------------------------------------
 
+// load animation
+void a3demo_loadAnimation(a3_DemoState *demoState)
+{
+	unsigned int i;
+
+	// file streaming (if requested)
+	a3_FileStream fileStream[1] = { 0 };
+	const char *const animationStream = "./data/anim_skeletal.dat";
+	FILE *fp;
+
+	if (demoState->streaming && a3fileStreamOpenRead(fileStream, animationStream))
+	{
+		// load hierarchies
+		a3fileStreamReadObject(fileStream, demoState->skeleton, (a3_FileStreamReadFunc)a3hierarchyLoadBinary);
+
+		// load base poses
+		fp = (FILE *)fileStream->stream;
+		fileStream->bytes += (unsigned int)fread(demoState->skeletonBaseOffsets, sizeof(p3vec3), sizeof(demoState->skeletonBaseOffsets) / sizeof(p3vec3), fp);
+	}
+	else if (!demoState->streaming || a3fileStreamOpenWrite(fileStream, animationStream))
+	{
+		// initialize skeletons and states
+
+		// humanoid: 
+		//	0 __ root
+		//	1  |\_ spine
+		//	2  |  \_ neck
+		//	3  |   |\_ head
+		//	4  |   |\_ r shoulder
+		//	5  |   |  \_ r elbow
+		//	6  |   |	\_ r wrist
+		//	7  |   |	  \_ r hand
+		//	8  |    \_ l shoulder
+		//	9  |  	  \_ l elbow
+		//	10 |  		\_ l wrist
+		//	11 |		  \_ l hand
+		//	12 |\_ r hip
+		//	13 |  \_ r knee
+		//	14 |	\_ r ankle
+		//	15 |	  \_ r foot
+		//	16  \_ l hip
+		//	17	  \_ l knee
+		//	18		\_ l ankle
+		//	19		  \_ r foot
+		//	count = 20
+
+		// ****TO-DO: 
+		// initialize and link skeleton
+		a3hierarchyCreate(demoState->skeleton, 20, 0);
+		
+		a3hierarchySetNode(demoState->skeleton, 0, -1, "root");
+		a3hierarchySetNode(demoState->skeleton, 1, 0, "spine");
+		a3hierarchySetNode(demoState->skeleton, 2, 1, "neck");
+		a3hierarchySetNode(demoState->skeleton, 3, 2, "head");
+		a3hierarchySetNode(demoState->skeleton, 4, 2, "r shoulder");
+		a3hierarchySetNode(demoState->skeleton, 5, 4, "r elbow");
+		a3hierarchySetNode(demoState->skeleton, 6, 5, "r wrist");
+		a3hierarchySetNode(demoState->skeleton, 7, 6, "r hand");
+		a3hierarchySetNode(demoState->skeleton, 8, 2, "l shoulder");
+		a3hierarchySetNode(demoState->skeleton, 9, 8, "l elbow");
+		a3hierarchySetNode(demoState->skeleton, 10, 9, "l wrist");
+		a3hierarchySetNode(demoState->skeleton, 11, 10, "l hand");
+		a3hierarchySetNode(demoState->skeleton, 12, 0, "r hip");
+		a3hierarchySetNode(demoState->skeleton, 13, 12, "r knee");
+		a3hierarchySetNode(demoState->skeleton, 14, 13, "r ankle");
+		a3hierarchySetNode(demoState->skeleton, 15, 14, "r foot");
+		a3hierarchySetNode(demoState->skeleton, 16, 0, "l hip");
+		a3hierarchySetNode(demoState->skeleton, 17, 16, "l knee");
+		a3hierarchySetNode(demoState->skeleton, 18, 17, "l ankle");
+		a3hierarchySetNode(demoState->skeleton, 19, 18, "l foot");
+
+		// ****TO-DO: 
+		// set skeleton base pose offsets (just translate for now)
+		// note: local relationships can be denoted like this: child -> parent
+		p3real3Set(demoState->skeletonBaseOffsets[0].v,  0.0f, 0.0f, 4.0f);	// root -> world
+		p3real3Set(demoState->skeletonBaseOffsets[1].v,  0.0f, 0.25f, 2.0f);	// spine -> root
+		p3real3Set(demoState->skeletonBaseOffsets[2].v,  0.0f, -0.25f, 2.0f);	// neck -> spine
+		p3real3Set(demoState->skeletonBaseOffsets[3].v,  0.0f, 0.0f, 10.0f);	// head -> neck
+		p3real3Set(demoState->skeletonBaseOffsets[4].v,  2.0f, 0.0f, 0.0f);	// r shoulder -> neck
+		p3real3Set(demoState->skeletonBaseOffsets[5].v,  1.5f, 0.25f, 0.0f);	// r elbow -> r shoulder
+		p3real3Set(demoState->skeletonBaseOffsets[6].v,  1.5f, -0.25f, 0.0f);	// r wrist -> r elbow
+		p3real3Set(demoState->skeletonBaseOffsets[7].v,  1.0f, 0.0f, 0.0f);	// r hand -> r wrist
+		p3real3Set(demoState->skeletonBaseOffsets[8].v,  0.0f, 0.0f, 0.0f);	// l shoulder -> neck
+		p3real3Set(demoState->skeletonBaseOffsets[9].v,  0.0f, 0.0f, 0.0f);	// l elbow -> l shoulder
+		p3real3Set(demoState->skeletonBaseOffsets[10].v, 0.0f, 0.0f, 0.0f);	// l wrist -> l elbow
+		p3real3Set(demoState->skeletonBaseOffsets[11].v, 0.0f, 0.0f, 0.0f);	// l hand -> l wrist
+		p3real3Set(demoState->skeletonBaseOffsets[12].v, 0.0f, 0.0f, 0.0f);	// r hip -> root
+		p3real3Set(demoState->skeletonBaseOffsets[13].v, 0.0f, 0.0f, 0.0f);	// r knee -> r hip
+		p3real3Set(demoState->skeletonBaseOffsets[14].v, 0.0f, 0.0f, 0.0f);	// r ankle -> r knee
+		p3real3Set(demoState->skeletonBaseOffsets[15].v, 0.0f, 0.0f, 0.0f);	// r foot -> r ankle
+		p3real3Set(demoState->skeletonBaseOffsets[16].v, 0.0f, 0.0f, 0.0f);	// l hip -> root
+		p3real3Set(demoState->skeletonBaseOffsets[17].v, 0.0f, 0.0f, 0.0f);	// l knee -> l hip
+		p3real3Set(demoState->skeletonBaseOffsets[18].v, 0.0f, 0.0f, 0.0f);	// l ankle -> l knee
+		p3real3Set(demoState->skeletonBaseOffsets[19].v, 0.0f, 0.0f, 0.0f);	// l foot -> l ankle
+
+
+		// save hierarchies
+		a3fileStreamWriteObject(fileStream, demoState->skeleton, (a3_FileStreamWriteFunc)a3hierarchySaveBinary);
+
+		// save base poses
+		if (demoState->streaming)
+		{
+			fp = (FILE *)fileStream->stream;
+			fileStream->bytes += (unsigned int)fwrite(demoState->skeletonBaseOffsets, sizeof(p3vec3), sizeof(demoState->skeletonBaseOffsets) / sizeof(p3vec3), fp);
+		}
+	}
+
+	// close stream
+	a3fileStreamClose(fileStream);
+
+
+	// initialize hierarchy states
+	a3hierarchyStateCreate(demoState->skeletonState_procFK, demoState->skeleton);
+	a3hierarchyStateCreate(demoState->skeletonState_ctrlFK, demoState->skeleton);
+
+	// set base states
+	for (i = 0; i < demoState->skeleton->numNodes; ++i)
+	{
+		demoState->skeletonState_procFK->localSpaceTransforms[i].v3.xyz = demoState->skeletonBaseOffsets[i];
+		demoState->skeletonState_ctrlFK->localSpaceTransforms[i].v3.xyz = demoState->skeletonBaseOffsets[i];
+	}
+	a3kinematicsSolveForward(demoState->skeletonState_procFK);
+	a3kinematicsSolveForward(demoState->skeletonState_ctrlFK);
+}
+
+// unload animation
+void a3demo_unloadAnimation(a3_DemoState *demoState)
+{
+	// release resources
+	a3hierarchyRelease(demoState->skeleton);
+
+	a3hierarchyStateRelease(demoState->skeletonState_procFK);
+	a3hierarchyStateRelease(demoState->skeletonState_ctrlFK);
+}
+
+
+//-----------------------------------------------------------------------------
+
 // initialize non-asset objects
 void a3demo_initScene(a3_DemoState *demoState)
 {
 	unsigned int i;
-	const float cameraAxisPos = 25.0f;
+	const float cameraAxisPos = 10.0f;
 
 	// all objects
 	for (i = 0; i < demoStateMaxCount_sceneObject; ++i)
@@ -604,20 +768,20 @@ void a3demo_initScene(a3_DemoState *demoState)
 		// vertical axis is Y
 		demoState->sceneCamera->sceneObject->position.x = +cameraAxisPos;
 		demoState->sceneCamera->sceneObject->position.y = +cameraAxisPos;
-		demoState->sceneCamera->sceneObject->position.z = -cameraAxisPos;
-		demoState->sceneCamera->sceneObject->euler.x = -30.0f;
-		demoState->sceneCamera->sceneObject->euler.y = 135.0f;
+		demoState->sceneCamera->sceneObject->position.z = +cameraAxisPos;
+		demoState->sceneCamera->sceneObject->euler.x = -15.0f;
+		demoState->sceneCamera->sceneObject->euler.y = 45.0f;
 		demoState->sceneCamera->sceneObject->euler.z = 0.0f;
 	}
 	else
 	{
 		// vertical axis is Z
 		demoState->sceneCamera->sceneObject->position.x = +cameraAxisPos;
-		demoState->sceneCamera->sceneObject->position.y = +cameraAxisPos;
+		demoState->sceneCamera->sceneObject->position.y = -cameraAxisPos;
 		demoState->sceneCamera->sceneObject->position.z = +cameraAxisPos;
-		demoState->sceneCamera->sceneObject->euler.x = 60.0f;
+		demoState->sceneCamera->sceneObject->euler.x = 75.0f;
 		demoState->sceneCamera->sceneObject->euler.y = 0.0f;
-		demoState->sceneCamera->sceneObject->euler.z = 135.0f;
+		demoState->sceneCamera->sceneObject->euler.z = 45.0f;
 	}
 
 //	demoState->sceneCamera->sceneObject->position.x = 8.0f;
@@ -643,110 +807,10 @@ void a3demo_initScene(a3_DemoState *demoState)
 	}
 
 
-	// create a short path for the track
-	{
-		unsigned int i;
-
-		demoState->waypointCount = 9;
-
-		demoState->pathDuration = 10.0f;
-
-		// waypoints
-		p3real3Set(demoState->waypoints[0], 10.0f, 0.0f, 10.0f);
-		p3real3Set(demoState->waypoints[1], 10.0f, 10.0f, 10.0f);
-		p3real3Set(demoState->waypoints[2], 10.0f, 10.0f, 20.0f);
-		p3real3Set(demoState->waypoints[3], 0.0f, 10.0f, 0.0f);
-		p3real3Set(demoState->waypoints[4], -10.0f, 0.0f, 10.0f);
-		p3real3Set(demoState->waypoints[5], -10.0f, -5.0f, 15.0f);
-		p3real3Set(demoState->waypoints[6], -10.0f, 0.0f, 20.0f);
-		p3real3Set(demoState->waypoints[7], -10.0f, 5.0f, 15.0f);
-		p3real3SetReal3(demoState->waypoints[8], demoState->waypoints[0]);
-
-		// tangents
-		p3real3Set(demoState->waypointTangents[0], 5.0f, 5.0f, 0.0f);
-		p3real3Set(demoState->waypointTangents[1], -5.0f, 5.0f, 5.0f);
-		p3real3Set(demoState->waypointTangents[2], -5.0f, 0.0f, 0.0f);
-		p3real3Set(demoState->waypointTangents[3], -10.0f, 0.0f, 0.0f);
-		p3real3Set(demoState->waypointTangents[4], 0.0f, -8.0f, 0.0f);
-		p3real3Set(demoState->waypointTangents[5], 0.0f, 0.0f, 8.0f);
-		p3real3Set(demoState->waypointTangents[6], 0.0f, 8.0f, 0.0f);
-		p3real3Set(demoState->waypointTangents[7], 0.0f, 0.0f, -8.0f);
-		p3real3SetReal3(demoState->waypointTangents[8], demoState->waypointTangents[0]);
-
-		// ****TO-DO: 
-		// approximate normal vectors
-
-
-		// correct handles
-		for (i = 0; i < demoState->waypointCount; ++i)
-			p3real3Sum(demoState->waypointHandles[i], demoState->waypointTangents[i], demoState->waypoints[i]);
-
-
-		// ****TO-DO: 
-		// MODE 3: pre-set orientations at waypoints
-
-
-
-		// pre-sample for speed control
-		{
-			float segmentArcLength, totalArcLength;
-			unsigned int sampleIndex, sampleEnd;
-			unsigned int segmentCount = demoState->waypointCount - 1;
-
-			demoState->pathSamplesPerSegment = 32;
-
-			p3real *p0, *p1, *h0, *h1;
-			p3real *q0, *q1;
-
-			// pre-sample each segment
-			for (i = sampleIndex = sampleEnd = 0, totalArcLength = 0.0f; i < segmentCount; ++i, sampleIndex = sampleEnd)
-			{
-				p0 = demoState->waypoints[i];
-				p1 = demoState->waypoints[i + 1];
-				h0 = demoState->waypointHandles[i];
-				h1 = demoState->waypointHandles[i + 1];
-
-				// ****TO-DO: 
-				// MODE 3: store table for orientations
-				//	-> use arc length table as temp, will be overwitten 
-				//		when positions are sampled (immediately afterwards)
-
-
-				// ****TO-DO: accumulate and 
-				// calculate arc length and store position samples
-				segmentArcLength = p3real3CalculateArcLengthHermiteControl(
-					demoState->pathSampleTable[sampleIndex].v, 0,
-					demoState->pathArcLengthTable + sampleIndex, 0,
-					demoState->pathSamplesPerSegment,
-					p0, p1, h0, h1);
-
-				for (sampleEnd += demoState->pathSamplesPerSegment; sampleIndex <= sampleEnd; ++sampleIndex)
-				{
-					demoState->pathArcLengthTable[sampleIndex] += totalArcLength;
-				}
-
-				demoState->pathArcLengthAtWaypointsTable[i] = totalArcLength;
-				totalArcLength += segmentArcLength;
-			}
-
-			// ****TO-DO: 
-			// store total at last waypoint
-
-
-			// ****TO-DO: 
-			// normalize all arc length samples
-			totalArcLength = 1.0f / totalArcLength;
-			for (sampleIndex = 0; sampleIndex <= sampleEnd; ++sampleIndex)
-			{
-				demoState->pathArcLengthTable[sampleIndex] *= totalArcLength;
-			}
-			for (i = 0; i < demoState->waypointCount; ++i)
-			{
-				demoState->pathArcLengthAtWaypointsTable[i] *= totalArcLength;
-			}
-
-		}
-	}
+	// skeletal
+	demoState->displayBoneAxes = 1;
+	demoState->cycleTime = 0.0f;
+	demoState->cycleDuration = 2.0f;
 }
 
 
@@ -827,40 +891,11 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 {
 	unsigned int i;
 
-	p3real3 tmpVec;
-	a3quat tmpQuat;
+	a3_HierarchyState *currentHierarchyState;
 
-	// keyframe controller for path update
-	{
-		float relativeTime;
-		unsigned int segmentIndex, sampleIndex;
-
-		demoState->pathTime += (float)dt;
-		if (demoState->pathTime >= demoState->pathDuration)
-			demoState->pathTime -= demoState->pathDuration;
-		else if (demoState->pathTime < 0.0f)
-			demoState->pathTime += demoState->pathDuration;
-
-		// ****TO-DO: 
-		// first, reduce the number of samples to check by checking where the 
-		//	relative time falls in the arc length table
-		relativeTime = demoState->pathTime / demoState->pathDuration;
-
-		segmentIndex = p3sampleTableLerpIncrementIndex(demoState->pathArcLengthAtWaypointsTable,
-			relativeTime, 0, 0);
-
-		sampleIndex = p3sampleTableLerpIncrementIndex(demoState->pathArcLengthTable, relativeTime, (segmentIndex - 1) * demoState->pathSamplesPerSegment, &demoState->sampleParam);
-
-		// ****TO-DO: 
-		// copy previous position
-		demoState->prevPosition = demoState->coasterObject->position;
-
-		// ****TO-DO: 
-		// update position based on resulting sample index
-		p3real3Lerp(demoState->coasterObject->position.v,
-			demoState->pathSampleTable[sampleIndex - 1].v, demoState->pathSampleTable[sampleIndex].v,
-			demoState->sampleParam);
-	}
+	float relativeTime;
+	p3vec4 tmpPos;
+	p3mat4 *tmpMatPtr;
 
 
 	// controls
@@ -897,41 +932,88 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 		a3demo_updateCameraViewProjection(demoState->camera + i);
 
 
-	// ****TO-DO: update orientation based on mode
-	switch (demoState->orientationMode)
+	// animation: solve kinematics here
+
+	// ****TO-DO: proper kinematics solution based on current mode
+	switch (demoState->kinematicsMode)
 	{
-		// basis controlled
+		// procedural animation FK
 	case 0:
-		// calc frenet serret frame for spaceship teapot
-		// -> tangent basis is +X
-		// 1. current pos - prev
-		// 2. normalize it
-		// 3. binormal = cross product tangent, world up
-		// 4. normalize
-		// 5. normal = binormal x tangent
+		currentHierarchyState = demoState->skeletonState_procFK;
 
-		//1
-		p3real3Diff(demoState->coasterObject->modelMat.v0.v,
-			demoState->coasterObject->position.v, demoState->prevPosition.v);
+		// ****TO-DO: update
+		demoState->cycleTime += (float)dt;
+		if (demoState->cycleTime >= demoState->cycleDuration)
+			demoState->cycleTime -= demoState->cycleDuration;
+		relativeTime = demoState->cycleTime / demoState->cycleDuration;
 
-		//2
-		p3real3Normalize(demoState->coasterObject->modelMat.v0.v);
-		//3, 4
-		p3real3CrossUnit(demoState->coasterObject->modelMat.v2.v,
-			demoState->coasterObject->modelMat.v0.v, p3zVec3.v);
+		// curved time
+		relativeTime = p3cosd(360 * relativeTime) * 0.5f + 0.5f;
 
-		//5
-		p3real3Cross(demoState->coasterObject->modelMat.v1.v,
-			demoState->coasterObject->modelMat.v2.v, demoState->coasterObject->modelMat.v0.v);
+		//bend elbow
+		i = a3hierarchyGetNodeIndex(currentHierarchyState->hierarchy, "r elbow");
+		tmpMatPtr = currentHierarchyState->localSpaceTransforms + i;
+		tmpPos = tmpMatPtr->v3;
+		p3real4x4SetRotateZ(tmpMatPtr->m, relativeTime * 45.0f);
+		tmpMatPtr->v3 = tmpPos;
+
+		// animate other joints
+		a3kinematicsSolveForward(currentHierarchyState);
 
 		break;
 
-		// approximate basis controlled
+		// user-controlled joints FK
 	case 1:
-		break;
+		currentHierarchyState = demoState->skeletonState_ctrlFK;
 
-		// quaternions
-	case 2:
+		// toggle active joint to be controlled
+		if (a3XboxControlIsChanged(demoState->xcontrol, a3xbox_DPAD_right) > 0
+			|| a3keyboardIsChanged(demoState->keyboard, a3key_rightArrow) > 0)
+		{
+			demoState->skeletonControlIndex = 
+				(demoState->skeletonControlIndex + 1) % 
+				currentHierarchyState->hierarchy->numNodes;
+		}
+		else if (a3XboxControlIsChanged(demoState->xcontrol, a3xbox_DPAD_left) > 0
+			|| a3keyboardIsChanged(demoState->keyboard, a3key_leftArrow) > 0)
+		{
+			demoState->skeletonControlIndex = 
+				(demoState->skeletonControlIndex + currentHierarchyState->hierarchy->numNodes - 1) % 
+				currentHierarchyState->hierarchy->numNodes;
+		}
+
+		// shorthand of index
+		i = demoState->skeletonControlIndex;
+
+		// update joint based on input
+		{
+			const float rotateRate = (float)(90.0 * dt);
+			p3vec3 eulerDelta;
+
+			if (a3XboxControlIsConnected(demoState->xcontrol))
+			{
+				double rJoystick[2], rTrigger[1], lTrigger[1];
+				a3XboxControlGetRightJoystick(demoState->xcontrol, rJoystick);
+				a3XboxControlGetTriggers(demoState->xcontrol, lTrigger, rTrigger);
+
+				eulerDelta.x = (float)(rJoystick[0]);
+				eulerDelta.y = (float)(rJoystick[1]);
+				eulerDelta.z = (float)(*rTrigger - *lTrigger);
+			}
+			else
+			{
+				eulerDelta.x = (float)(a3keyboardGetDifference(demoState->keyboard, a3key_L, a3key_J));
+				eulerDelta.y = (float)(a3keyboardGetDifference(demoState->keyboard, a3key_I, a3key_K));
+				eulerDelta.z = (float)(a3keyboardGetDifference(demoState->keyboard, a3key_O, a3key_U));
+			}
+
+			demoState->skeletonEulers[i].x = p3trigValid_sind(demoState->skeletonEulers[i].x + rotateRate * eulerDelta.x);
+			demoState->skeletonEulers[i].y = p3trigValid_sind(demoState->skeletonEulers[i].y + rotateRate * eulerDelta.y);
+			demoState->skeletonEulers[i].z = p3trigValid_sind(demoState->skeletonEulers[i].z + rotateRate * eulerDelta.z);
+		}
+
+		// ****TO-DO: update
+
 		break;
 	}
 
@@ -971,19 +1053,14 @@ void a3demo_render(a3_DemoState *demoState)
 		0.5f, 0.5f, 0.5f, 0.5f,
 	};
 
-	// curve handle color: orange
-	const float handleColor[] = {
+	// joint shape color: orange
+	const float jointColor[] = {
 		1.0f, 0.5f, 0.0f, 1.0f
 	};
 
-	// waypoint color: blue
-	const float waypointColor[] = {
+	// bone shape color: blue
+	const float boneColor[] = {
 		0.0f, 0.5f, 1.0f, 1.0f
-	};
-
-	// target color: pink
-	const float targetColor[] = {
-		1.0f, 0.0f, 0.5f, 1.0f
 	};
 
 
@@ -1006,12 +1083,19 @@ void a3demo_render(a3_DemoState *demoState)
 		+1.0f, 0.0f, 0.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, +1.0f,
 	};
+	const p3mat4 downscale5x = {
+		0.2f, 0.0f, 0.0f, 0.0f,
+		0.0f, 0.2f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.2f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f,
+	};
 
 	// transformed vectors
-	p3vec4 lightPos_obj, eyePos_obj;
+//	p3vec4 lightPos_obj, eyePos_obj;
 
 	// final model matrix and full matrix stack
-	p3mat4 modelMatOrig, modelMat = p3identityMat4, modelMatInv = p3identityMat4, modelViewProjectionMat = p3identityMat4;
+	p3mat4 modelMat = p3identityMat4, modelMatInv = p3identityMat4, modelViewProjectionMat = p3identityMat4;
+//	p3mat4 modelMatOrig;
 
 	// current scene object being rendered, for convenience
 	a3_DemoSceneObject *currentSceneObject;
@@ -1029,22 +1113,19 @@ void a3demo_render(a3_DemoState *demoState)
 	//	- send uniforms
 	//	- draw
 
+	currentSceneObject = demoState->skeletonObject;
 
-	// draw teapot & earth
-	currentDemoProgram = demoState->prog_drawPhong_obj;
-	a3shaderProgramActivate(currentDemoProgram->program);
-
-
+/*
+	// draw model
 	currentDrawable = demoState->draw_teapot;
-	currentSceneObject = demoState->coasterObject;
-/*	if (!useVerticalY)	// teapot's axis is Y
+	if (!useVerticalY)	// teapot's axis is Y
 	{
 		modelMatOrig = currentSceneObject->modelMat;
 		p3real4x4ProductTransform(modelMat.m, convertY2Z.m, modelMatOrig.m);
 		p3real4TransformMul(convertZ2Y.m, modelMat.v3.v);
 	}
 	else
-*/	{
+	{
 		modelMatOrig = modelMat = currentSceneObject->modelMat;
 		modelMatInv = currentSceneObject->modelMatInv;
 	}
@@ -1052,13 +1133,16 @@ void a3demo_render(a3_DemoState *demoState)
 	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
 	p3real4TransformProduct(lightPos_obj.v, modelMatInv.m, demoState->lightObject->modelMat.v3.v);
 	p3real4TransformProduct(eyePos_obj.v, modelMatInv.m, demoState->cameraObject->modelMat.v3.v);
+
+	currentDemoProgram = demoState->prog_drawPhong_obj;
+	a3shaderProgramActivate(currentDemoProgram->program);
 	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
 	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uLightPos_obj, 1, lightPos_obj.v);
 	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uEyePos_obj, 1, eyePos_obj.v);
 	a3textureActivate(demoState->tex_checker, a3tex_unit00);
 	a3textureActivate(demoState->tex_checker, a3tex_unit01);
 	a3vertexActivateAndRenderDrawable(currentDrawable);
-
+*/
 
 	// draw grid aligned to world
 	currentDemoProgram = demoState->prog_drawColorUnif;
@@ -1075,6 +1159,7 @@ void a3demo_render(a3_DemoState *demoState)
 	// overlay items
 	glDisable(GL_DEPTH_TEST);
 
+/*
 	// draw gimbal
 	currentDemoProgram = demoState->prog_drawColorUnif;
 	a3shaderProgramActivate(currentDemoProgram->program);
@@ -1104,58 +1189,145 @@ void a3demo_render(a3_DemoState *demoState)
 	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
 	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 0);
 	a3vertexRenderActiveDrawable();
-
-	// draw line segments
-	currentDemoProgram = demoState->prog_drawLine;
-	modelViewProjectionMat = demoState->camera->viewProjectionMat;
-	a3shaderProgramActivate(currentDemoProgram->program);
-	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-
-	currentDrawable = demoState->draw_curve;
-	a3vertexActivateDrawable(currentDrawable);
-	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uLineColor, 1, handleColor);
-	a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypoints, 2, demoState->lineEnds[0].v);
-	a3vertexRenderActiveDrawable();
-	a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypoints, 2, demoState->lineEnds[2].v);
-	a3vertexRenderActiveDrawable();
+*/
 
 
-	// draw curve segments
-	currentDemoProgram = demoState->prog_drawCurve;
-	modelViewProjectionMat = demoState->camera->viewProjectionMat;
-	a3shaderProgramActivate(currentDemoProgram->program);
-	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-
-	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uLineColor, 1, handleColor);
-	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uCurveColor, 1, targetColor);
-	a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypoints, demoState->waypointCount, *demoState->waypoints);
-	a3shaderUniformSendFloat(a3unif_vec3, currentDemoProgram->uWaypointHandles, demoState->waypointCount, *demoState->waypointHandles);
-
-	a3vertexRenderActiveDrawableInstanced(demoState->waypointCount - 1);
-
-
-	// draw waypoints
-	currentDemoProgram = demoState->prog_drawColorUnif;
-	a3shaderProgramActivate(currentDemoProgram->program);
-	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, waypointColor);
-
-	modelMat = p3identityMat4;
-	currentDrawable = demoState->draw_node;
-	a3vertexActivateDrawable(currentDrawable);
-	for (i = 0; i < 4; ++i)
+	// ****TO-DO: draw skeleton
 	{
-		modelMat.v3.xyz = demoState->lineEnds[i];
+		const a3_HierarchyState *currentHierarchyState;
+
+		// matrices for rendering bones relative to skeleton
+		p3mat4 boneMatrices[64], *boneMatrixPtr;
+
+		// temporary matrix pointers
+		const p3mat4 *nodeTransformPtr, *parentTransformPtr;
+		int parentIndex;
+
+		// tmp NDC vector for screen-space renders
+		p3vec4 posNDC;
+
+
+		currentDemoProgram = demoState->prog_drawColorUnifInstanced;
+		a3shaderProgramActivate(currentDemoProgram->program);
+
+		// select state
+		switch (demoState->kinematicsMode)
+		{
+		case 0:
+			currentHierarchyState = demoState->skeletonState_procFK;
+			break;
+		case 1:
+			currentHierarchyState = demoState->skeletonState_ctrlFK;
+			break;
+		}
+
+		// calculate and send viewing matrix for skeleton object
+		modelMat = currentSceneObject->modelMat;
+		modelMatInv = currentSceneObject->modelMatInv;
 		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
 		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-		a3vertexRenderActiveDrawable();
-	}
 
-	for (i = 0; i < demoState->waypointCount; ++i)
-	{
-		p3real3SetReal3(modelMat.v3.v, demoState->waypoints[i]);
-		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMat.m);
-		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-		a3vertexRenderActiveDrawable();
+		// draw joints
+		currentDrawable = demoState->draw_joint;
+		a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, jointColor);
+		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uLocal,
+			currentHierarchyState->hierarchy->numNodes, (float *)currentHierarchyState->objectSpaceTransforms);
+		a3vertexActivateAndRenderDrawableInstanced(currentDrawable, currentHierarchyState->hierarchy->numNodes);
+
+		// draw bones
+		// first calculate their object-space orientations to make them appear to 
+		//	link joints together (it's a Frenet frame)
+		for (i = 0; i < currentHierarchyState->hierarchy->numNodes; ++i)
+		{
+			boneMatrixPtr = boneMatrices + i;
+			parentIndex = currentHierarchyState->hierarchy->nodes[i].parentIndex;
+			if (parentIndex >= 0)
+			{
+				nodeTransformPtr = currentHierarchyState->objectSpaceTransforms + i;
+				parentTransformPtr = currentHierarchyState->objectSpaceTransforms + parentIndex;
+
+				// reset
+				*boneMatrixPtr = p3identityMat4;
+
+				// set position
+				boneMatrixPtr->v3 = parentTransformPtr->v3;
+
+				// set direction column (local Z)
+				p3real4Diff(boneMatrixPtr->v2.v, nodeTransformPtr->v3.v, boneMatrixPtr->v3.v);
+
+				// set other basis vectors
+				p3real3CrossUnit(boneMatrixPtr->v0.v, (boneMatrixPtr->y2 != 0.0f ? p3zVec3.v : p3yVec3.v), boneMatrixPtr->v2.v);
+				p3real3CrossUnit(boneMatrixPtr->v1.v, boneMatrixPtr->v2.v, boneMatrixPtr->v0.v);
+			}
+			else
+				memset(boneMatrixPtr, 0, sizeof(p3mat4));
+		}
+		currentDrawable = demoState->draw_bone;
+		a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, boneColor);
+		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uLocal,
+			currentHierarchyState->hierarchy->numNodes, (float *)boneMatrices);
+		a3vertexActivateAndRenderDrawableInstanced(currentDrawable, currentHierarchyState->hierarchy->numNodes);
+
+		// finally, draw small coordinate axes on bones to show 
+		//	their actual orientation
+		if (demoState->displayBoneAxes)
+		{
+			currentDemoProgram = demoState->prog_drawColorInstanced;
+			a3shaderProgramActivate(currentDemoProgram->program);
+
+			a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+
+			// apply downscale to all bone matrices
+			for (i = 0; i < currentHierarchyState->hierarchy->numNodes; ++i)
+				p3real4x4Product(boneMatrices[i].m, currentHierarchyState->objectSpaceTransforms[i].m, downscale5x.m);
+
+			currentDrawable = demoState->draw_axes;
+			a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uLocal,
+				currentHierarchyState->hierarchy->numNodes, (float *)boneMatrices);
+			a3vertexActivateAndRenderDrawableInstanced(currentDrawable, currentHierarchyState->hierarchy->numNodes);
+
+			// also display joint names
+			if (demoState->textInit)
+			{
+				a3shaderProgramDeactivate();
+
+				// concatenate bone matrices with MVP to get full transformation 
+				//	sequence for each joint
+				// get position of each joint in NDC, draw text using NDC position
+				for (i = 0; i < currentHierarchyState->hierarchy->numNodes; ++i)
+				{
+					p3real4x4ConcatR(modelViewProjectionMat.m, boneMatrices[i].m);
+					p3real4Real4x4Product(posNDC.v, boneMatrices[i].m, p3wVec4.v);
+					p3real4DivS(posNDC.v, posNDC.w);
+					
+					a3textDraw(demoState->text, posNDC.x, posNDC.y, posNDC.z, 1.0f, 1.0f, 1.0f, 1.0f, 
+						currentHierarchyState->hierarchy->nodes[i].name);
+				}
+			}
+		}
+
+		// display edit joints
+		switch (demoState->kinematicsMode)
+		{
+			// controlled FK
+		case 1:
+			a3shaderProgramDeactivate();
+
+			i = demoState->skeletonControlIndex;
+			p3real4x4Product(boneMatrices[i].m, currentHierarchyState->objectSpaceTransforms[i].m, downscale5x.m);
+			p3real4x4ConcatR(modelViewProjectionMat.m, boneMatrices[i].m);
+			p3real4Real4x4Product(posNDC.v, boneMatrices[i].m, p3wVec4.v);
+			p3real4DivS(posNDC.v, posNDC.w);
+			
+			// change color over time
+			if ((int)(demoState->renderTimer->totalTime * 2.0f) % 2)
+				a3textDraw(demoState->text, posNDC.x, posNDC.y, posNDC.z, 1.0f, 1.0f, 1.0f, 1.0f,
+					currentHierarchyState->hierarchy->nodes[i].name);
+			else
+				a3textDraw(demoState->text, posNDC.x, posNDC.y, posNDC.z, 1.0f, 0.5f, 0.5f, 1.0f,
+					currentHierarchyState->hierarchy->nodes[i].name);
+			break;
+		}
 	}
 
 	glEnable(GL_DEPTH_TEST);
@@ -1174,11 +1346,6 @@ void a3demo_render(a3_DemoState *demoState)
 	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
 	a3vertexRenderActiveDrawable();
 
-	// moving object
-	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
-	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-	a3vertexRenderActiveDrawable();
-
 	glEnable(GL_DEPTH_TEST);
 
 
@@ -1191,17 +1358,34 @@ void a3demo_render(a3_DemoState *demoState)
 	if (demoState->textInit && demoState->showText)
 	{
 		const char *modeText[] = {
-			"Frenet-Serret orientation, sample-controlled & fixed up vector",
-			"Frenet-Serret orientation, path-controlled & varying up vector",
-			"Quaternion path-controlled orientation",
+			"Forward kinematics (procedural animation)",
+			"Forward kinematics (user-controlled)",
 		};
 
 		glDisable(GL_DEPTH_TEST);
 
 		a3textDraw(demoState->text, -0.98f, +0.90f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			"Orientation control mode (%u / 3): ", demoState->orientationMode + 1);
+			"Orientation control mode (%u / 2): ", demoState->kinematicsMode + 1);
 		a3textDraw(demoState->text, -0.98f, +0.85f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-			"    %s", modeText[demoState->orientationMode]);
+			"    %s", modeText[demoState->kinematicsMode]);
+
+		switch (demoState->kinematicsMode)
+		{
+			// proc fk
+		case 0:
+			break;
+		case 1:
+			a3textDraw(demoState->text, -0.98f, -0.85f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+				"Editing joint \"%s\" (index = %u / count = %u)", 
+				demoState->skeleton->nodes[demoState->skeletonControlIndex].name, 
+				demoState->skeletonControlIndex, demoState->skeleton->numNodes);
+			a3textDraw(demoState->text, -0.98f, -0.90f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+				"    Local Euler angles: x ('L'/'J') = %f,  y ('I'/'K') = %f,  z ('O'/'U') = %f",
+				demoState->skeletonEulers[demoState->skeletonControlIndex].x,
+				demoState->skeletonEulers[demoState->skeletonControlIndex].y,
+				demoState->skeletonEulers[demoState->skeletonControlIndex].z);
+			break;
+		}
 
 		glEnable(GL_DEPTH_TEST);
 	}

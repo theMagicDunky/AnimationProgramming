@@ -179,6 +179,8 @@
     <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\a3_DemoState.c" />
     <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\a3_demo_callbacks.c" />
     <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_DemoSceneObject.c" />
+    <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_HierarchyState.c" />
+    <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Kinematics.c" />
     <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Quaternion.c" />
     <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_RayPicking.c" />
     <ClCompile Include="_src_win\main_dll.c" />
@@ -186,6 +188,8 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\a3_DemoState.h" />
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_DemoSceneObject.h" />
+    <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_HierarchyState.h" />
+    <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Kinematics.h" />
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Quaternion.h" />
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_RayPicking.h" />
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\a3_dylib_config_export.h" />
@@ -197,10 +201,12 @@
     <None Include="..\..\..\resource\glsl\4x\fs\drawTexture_fs4x.glsl" />
     <None Include="..\..\..\resource\glsl\4x\gs\drawHermite_gs4x.glsl" />
     <None Include="..\..\..\resource\glsl\4x\gs\drawLine_gs4x.glsl" />
+    <None Include="..\..\..\resource\glsl\4x\vs\passColor_transform_instanced_vs4x.glsl" />
     <None Include="..\..\..\resource\glsl\4x\vs\passInstanceID_vs4x.glsl" />
     <None Include="..\..\..\resource\glsl\4x\vs\passColor_transform_vs4x.glsl" />
     <None Include="..\..\..\resource\glsl\4x\vs\passPhong_obj_transform_vs4x.glsl" />
     <None Include="..\..\..\resource\glsl\4x\vs\passTexcoord_transform_vs4x.glsl" />
+    <None Include="..\..\..\resource\glsl\4x\vs\passthru_transform_instanced_vs4x.glsl" />
     <None Include="..\..\..\resource\glsl\4x\vs\passthru_transform_vs4x.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

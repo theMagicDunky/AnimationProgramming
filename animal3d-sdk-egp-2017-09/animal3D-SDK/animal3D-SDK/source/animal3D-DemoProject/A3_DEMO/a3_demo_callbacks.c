@@ -140,6 +140,9 @@ A3API a3_DemoState *a3test_load()
 	// shaders
 	a3demo_loadShaders(demoState);
 
+	// animation
+	a3demo_loadAnimation(demoState);
+
 	// scene objects
 	a3demo_initScene(demoState);
 
@@ -169,6 +172,9 @@ A3API void a3test_unload(a3_DemoState *demoState, int hotload)
 		a3demo_unloadTextures(demoState);
 		a3demo_unloadGeometry(demoState);
 		a3demo_unloadShaders(demoState);
+
+		// free other
+		a3demo_unloadAnimation(demoState);
 
 		// validate unload
 		a3demo_validateUnload(demoState);
@@ -332,7 +338,7 @@ A3API void a3test_keyCharPress(a3_DemoState *demoState, int asciiKey)
 	case 'T': 
 		if (!a3textIsInitialized(demoState->text))
 		{
-			a3textInitialize(demoState->text, 24, 1, 0, 0, 0);
+			a3textInitialize(demoState->text, 12, 1, 0, 0, 0);
 			demoState->textInit = 1;
 		}
 		else
@@ -354,10 +360,14 @@ A3API void a3test_keyCharPress(a3_DemoState *demoState, int asciiKey)
 
 		// change mode
 	case '.':
-		demoState->orientationMode = (demoState->orientationMode + 1) % 3;
+		demoState->kinematicsMode = (demoState->kinematicsMode + 1) % 2;
 		break;
 	case ',':
-		demoState->orientationMode = (demoState->orientationMode + 2) % 3;
+		demoState->kinematicsMode = (demoState->kinematicsMode + 1) % 2;
+		break;
+
+	case 'x':
+		demoState->displayBoneAxes = 1 - demoState->displayBoneAxes;
 		break;
 	}
 }

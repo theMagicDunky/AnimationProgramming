@@ -42,6 +42,8 @@
 #include "_utilities/a3_DemoSceneObject.h"
 #include "_utilities/a3_RayPicking.h"
 #include "_utilities/a3_Quaternion.h"
+#include "_utilities/a3_HierarchyState.h"
+#include "_utilities/a3_Kinematics.h"
 
 
 //-----------------------------------------------------------------------------
@@ -69,7 +71,7 @@ extern "C"
 		demoStateMaxCount_texture = 4,
 		demoStateMaxCount_drawDataBuffer = 1,
 		demoStateMaxCount_vertexArray = 4,
-		demoStateMaxCount_drawable = 8,
+		demoStateMaxCount_drawable = 16,
 		demoStateMaxCount_shaderProgram = 8,
 		demoStateMaxCount_shaderProgramUniform = 16,
 	};
@@ -87,6 +89,7 @@ extern "C"
 				int
 					// common vertex shader uniforms
 					uMVP,						// model-view-projection transform
+					uLocal,						// local-space transform (pre-model)
 					uLightPos_obj,				// light position in object-space
 					uEyePos_obj,				// eye position in object-space
 
@@ -150,39 +153,25 @@ extern "C"
 		//---------------------------------------------------------------------
 		// animation variables and objects
 
-		// orientation update mode
-		unsigned int orientationMode;
+		// update and display modes
+		int kinematicsMode;
+		int displayBoneAxes;
 
-		// waypoint set for drawing pairs of lines
-		p3vec3 lineEnds[4];
+		// skeleton hierarchies and fixed state information
+		a3_Hierarchy skeleton[1];
 
-		// ****TO-DO: construct physical path using Hermite curves
-		p3real3 waypoints[16];
-		p3real3 waypointTangents[16];
-		p3real3 waypointHandles[16];
-		float waypointTimes[16];
-		unsigned int waypointCount;
+		p3vec3 skeletonBaseOffsets[64];
 
-		// controller
-		float pathTime;
-		float pathDuration;
-		float sampleParam, segmentParam;
-		unsigned int sampleIndex, segmentIndex;
+		// hierarchy states for different modes
+		a3_HierarchyState skeletonState_procFK[1];
+		a3_HierarchyState skeletonState_ctrlFK[1];
 
-		// ****TO-DO: mode 1: calculate Frenet-Serret frame on pre-sampled path
-		//	-> use constant "world up" vector as control
-		//	-> use vector between samples as tangent
-		unsigned int pathSamplesPerSegment;
-		float pathArcLengthTable[1024];
-		p3vec3 pathSampleTable[1024];
-		float pathArcLengthAtWaypointsTable[16];
+		// procedural animation values
+		float cycleTime, cycleDuration;
 
-		// ****TO-DO: mode 2: calculate Frenet-Serret frame, method 2
-		//	-> approximate up vector at each waypoint
-		//	-> store previous position to calculate tangent
-		p3vec3 prevPosition;
-
-		// ****TO-DO: mode 3: construct orientation path, calculate quaternion
+		// controlled FK values
+		p3vec3 skeletonEulers[64];
+		unsigned int skeletonControlIndex;
 
 
 		//---------------------------------------------------------------------
@@ -198,7 +187,7 @@ extern "C"
 				a3_DemoSceneObject
 					cameraObject[1],					// transform for camera
 					lightObject[1],						// transform for light
-					coasterObject[1];					// moving object
+					skeletonObject[1];					// skeletal animation object
 			};
 		};
 
@@ -265,6 +254,8 @@ extern "C"
 					draw_node[1],								// small round shape for a node or waypoint
 					draw_gimbal[1],								// gimbal background
 					draw_ring[1],								// gimbal ring (torus or ring)
+					draw_bone[1],								// skeletal bone shape (spike)
+					draw_joint[1],								// joint shape
 					draw_sphere[1],								// procedural sphere
 					draw_teapot[1];								// loaded teapot model
 			};
@@ -277,7 +268,9 @@ extern "C"
 			struct {
 				a3_DemoStateShaderProgram
 					prog_drawColor[1],					// draw color attribute
+					prog_drawColorInstanced[1],			// draw color attribute instanced
 					prog_drawColorUnif[1],				// draw uniform color
+					prog_drawColorUnifInstanced[1],		// draw uniform color instanced
 					prog_drawTexture[1],				// draw texture sample
 					prog_drawPhong_obj[1],				// draw object-space Phong shading
 					prog_drawLine[1],					// draw line segment
@@ -303,6 +296,9 @@ extern "C"
 	void a3demo_unloadTextures(a3_DemoState *demoState);
 	void a3demo_unloadGeometry(a3_DemoState *demoState);
 	void a3demo_unloadShaders(a3_DemoState *demoState);
+
+	void a3demo_loadAnimation(a3_DemoState *demoState);
+	void a3demo_unloadAnimation(a3_DemoState *demoState);
 
 	void a3demo_initScene(a3_DemoState *demoState);
 

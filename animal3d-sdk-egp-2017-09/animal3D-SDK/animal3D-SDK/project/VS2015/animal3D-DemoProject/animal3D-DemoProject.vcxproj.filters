@@ -69,6 +69,12 @@
     <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Quaternion.c">
       <Filter>Source Files\common\A3_DEMO\_utilities</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Kinematics.c">
+      <Filter>Source Files\common\A3_DEMO\_utilities</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_HierarchyState.c">
+      <Filter>Source Files\common\A3_DEMO\_utilities</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\a3_dylib_config_export.h">
@@ -84,6 +90,12 @@
       <Filter>Header Files\A3_DEMO\_utilities</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Quaternion.h">
+      <Filter>Header Files\A3_DEMO\_utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_Kinematics.h">
+      <Filter>Header Files\A3_DEMO\_utilities</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\source\animal3D-DemoProject\A3_DEMO\_utilities\a3_HierarchyState.h">
       <Filter>Header Files\A3_DEMO\_utilities</Filter>
     </ClInclude>
   </ItemGroup>
@@ -119,6 +131,12 @@
       <Filter>Resource Files\A3_DEMO\glsl\4x\gs</Filter>
     </None>
     <None Include="..\..\..\resource\glsl\4x\vs\passInstanceID_vs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\vs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\vs\passthru_transform_instanced_vs4x.glsl">
+      <Filter>Resource Files\A3_DEMO\glsl\4x\vs</Filter>
+    </None>
+    <None Include="..\..\..\resource\glsl\4x\vs\passColor_transform_instanced_vs4x.glsl">
       <Filter>Resource Files\A3_DEMO\glsl\4x\vs</Filter>
     </None>
   </ItemGroup>
