@@ -647,9 +647,27 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 		//	19		  \_ r foot
 		//	count = 20
 
+
+		/*
+			birb
+
+			0 root
+			1	spine
+			2		neck
+			3			head
+			4			r shoulder
+			5				r elbow
+			6				r wing bone 1
+			7					r wing bone 2
+			8					r elbow 2
+			9						r wing bone 3
+		
+		
+		*/
+
 		// ****TO-DO: 
 		// initialize and link skeleton
-		a3hierarchyCreate(demoState->skeleton, 20, 0);
+		a3hierarchyCreate(demoState->skeleton, 28, 0);
 		
 		a3hierarchySetNode(demoState->skeleton, 0, -1, "root");
 		a3hierarchySetNode(demoState->skeleton, 1, 0, "spine");
@@ -657,44 +675,60 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 		a3hierarchySetNode(demoState->skeleton, 3, 2, "head");
 		a3hierarchySetNode(demoState->skeleton, 4, 2, "r shoulder");
 		a3hierarchySetNode(demoState->skeleton, 5, 4, "r elbow");
-		a3hierarchySetNode(demoState->skeleton, 6, 5, "r wrist");
-		a3hierarchySetNode(demoState->skeleton, 7, 6, "r hand");
-		a3hierarchySetNode(demoState->skeleton, 8, 2, "l shoulder");
-		a3hierarchySetNode(demoState->skeleton, 9, 8, "l elbow");
-		a3hierarchySetNode(demoState->skeleton, 10, 9, "l wrist");
-		a3hierarchySetNode(demoState->skeleton, 11, 10, "l hand");
-		a3hierarchySetNode(demoState->skeleton, 12, 0, "r hip");
-		a3hierarchySetNode(demoState->skeleton, 13, 12, "r knee");
-		a3hierarchySetNode(demoState->skeleton, 14, 13, "r ankle");
-		a3hierarchySetNode(demoState->skeleton, 15, 14, "r foot");
-		a3hierarchySetNode(demoState->skeleton, 16, 0, "l hip");
-		a3hierarchySetNode(demoState->skeleton, 17, 16, "l knee");
-		a3hierarchySetNode(demoState->skeleton, 18, 17, "l ankle");
-		a3hierarchySetNode(demoState->skeleton, 19, 18, "l foot");
+		a3hierarchySetNode(demoState->skeleton, 6, 4, "r wing bone 1");
+		a3hierarchySetNode(demoState->skeleton, 7, 5, "r wing bone 2");
+		a3hierarchySetNode(demoState->skeleton, 8, 5, "r elbow 2");
+		a3hierarchySetNode(demoState->skeleton, 9, 8, "r wing bone 3");
+		a3hierarchySetNode(demoState->skeleton, 10, 0, "r hip");
+		a3hierarchySetNode(demoState->skeleton, 11, 10, "r ankle");
+		a3hierarchySetNode(demoState->skeleton, 12, 11, "r foot");
+		a3hierarchySetNode(demoState->skeleton, 13, 12, "r toe 1");
+		a3hierarchySetNode(demoState->skeleton, 14, 12, "r toe 2");
+		a3hierarchySetNode(demoState->skeleton, 15, 12, "r toe 3");
+		a3hierarchySetNode(demoState->skeleton, 16, 2, "l shoulder");
+		a3hierarchySetNode(demoState->skeleton, 17, 16, "l elbow");
+		a3hierarchySetNode(demoState->skeleton, 18, 16, "l wing bone 1");
+		a3hierarchySetNode(demoState->skeleton, 19, 17, "l wing bone 2");
+		a3hierarchySetNode(demoState->skeleton, 20, 17, "l elbow 2");
+		a3hierarchySetNode(demoState->skeleton, 21, 20, "l wing bone 3");
+		a3hierarchySetNode(demoState->skeleton, 22, 0, "l hip");
+		a3hierarchySetNode(demoState->skeleton, 23, 22, "l ankle");
+		a3hierarchySetNode(demoState->skeleton, 24, 23, "l foot");
+		a3hierarchySetNode(demoState->skeleton, 25, 24, "l toe 1");
+		a3hierarchySetNode(demoState->skeleton, 26, 24, "l toe 2");
+		a3hierarchySetNode(demoState->skeleton, 27, 24, "l toe 3");
 
 		// ****TO-DO: 
 		// set skeleton base pose offsets (just translate for now)
 		// note: local relationships can be denoted like this: child -> parent
-		p3real3Set(demoState->skeletonBaseOffsets[0].v,  0.0f, 0.0f, 4.0f);	// root -> world
-		p3real3Set(demoState->skeletonBaseOffsets[1].v,  0.0f, 0.25f, 2.0f);	// spine -> root
-		p3real3Set(demoState->skeletonBaseOffsets[2].v,  0.0f, -0.25f, 2.0f);	// neck -> spine
-		p3real3Set(demoState->skeletonBaseOffsets[3].v,  0.0f, 0.0f, 10.0f);	// head -> neck
-		p3real3Set(demoState->skeletonBaseOffsets[4].v,  2.0f, 0.0f, 0.0f);	// r shoulder -> neck
-		p3real3Set(demoState->skeletonBaseOffsets[5].v,  1.5f, 0.25f, 0.0f);	// r elbow -> r shoulder
-		p3real3Set(demoState->skeletonBaseOffsets[6].v,  1.5f, -0.25f, 0.0f);	// r wrist -> r elbow
-		p3real3Set(demoState->skeletonBaseOffsets[7].v,  1.0f, 0.0f, 0.0f);	// r hand -> r wrist
-		p3real3Set(demoState->skeletonBaseOffsets[8].v,  0.0f, 0.0f, 0.0f);	// l shoulder -> neck
-		p3real3Set(demoState->skeletonBaseOffsets[9].v,  0.0f, 0.0f, 0.0f);	// l elbow -> l shoulder
-		p3real3Set(demoState->skeletonBaseOffsets[10].v, 0.0f, 0.0f, 0.0f);	// l wrist -> l elbow
-		p3real3Set(demoState->skeletonBaseOffsets[11].v, 0.0f, 0.0f, 0.0f);	// l hand -> l wrist
-		p3real3Set(demoState->skeletonBaseOffsets[12].v, 0.0f, 0.0f, 0.0f);	// r hip -> root
-		p3real3Set(demoState->skeletonBaseOffsets[13].v, 0.0f, 0.0f, 0.0f);	// r knee -> r hip
-		p3real3Set(demoState->skeletonBaseOffsets[14].v, 0.0f, 0.0f, 0.0f);	// r ankle -> r knee
-		p3real3Set(demoState->skeletonBaseOffsets[15].v, 0.0f, 0.0f, 0.0f);	// r foot -> r ankle
-		p3real3Set(demoState->skeletonBaseOffsets[16].v, 0.0f, 0.0f, 0.0f);	// l hip -> root
-		p3real3Set(demoState->skeletonBaseOffsets[17].v, 0.0f, 0.0f, 0.0f);	// l knee -> l hip
-		p3real3Set(demoState->skeletonBaseOffsets[18].v, 0.0f, 0.0f, 0.0f);	// l ankle -> l knee
-		p3real3Set(demoState->skeletonBaseOffsets[19].v, 0.0f, 0.0f, 0.0f);	// l foot -> l ankle
+		p3real3Set(demoState->skeletonBaseOffsets[0].v, 0.0f, 0.0f, 4.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[1].v, 0.0f, 0.5f, 2.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[2].v, 0.0f, 1.25f, 2.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[3].v, 0.0f, 0.5f, 0.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[4].v, 2.0f, -0.25f, 0.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[5].v, 1.5f, 0.25f, -0.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[6].v, 0.0f, -1.0f, -2.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[7].v, 0.0f, -1.0f, -2.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[8].v, 1.0f, 0.25f, -0.75f);
+		p3real3Set(demoState->skeletonBaseOffsets[9].v, 0.0f, -1.0f, -2.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[10].v, 1.0f, 0.0f, -0.25f);
+		p3real3Set(demoState->skeletonBaseOffsets[11].v, 0.0f, -0.5f, -1.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[12].v, 0.0f, 0.75f, -1.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[13].v, 0.25f, 0.25f, 0.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[14].v, 0.0f, 0.25f, 0.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[15].v, -0.25f, 0.25f, 0.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[16].v, -2.0f, -0.25f, 0.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[17].v, -1.5f, 0.25f, -0.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[18].v, 0.0f, -1.0f, -2.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[19].v, 0.0f, -1.0f, -2.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[20].v, -1.0f, 0.25f, -0.75f);
+		p3real3Set(demoState->skeletonBaseOffsets[21].v, 0.0f, -1.0f, -2.5f);
+		p3real3Set(demoState->skeletonBaseOffsets[22].v, -1.0f, 0.0f, -0.25f);
+		p3real3Set(demoState->skeletonBaseOffsets[23].v, 0.0f, -0.5f, -1.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[24].v, 0.0f, 0.75f, -1.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[25].v, 0.25f, 0.25f, 0.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[26].v, 0.0f, 0.25f, 0.0f);
+		p3real3Set(demoState->skeletonBaseOffsets[27].v, -0.25f, 0.25f, 0.0f);
 
 
 		// save hierarchies
@@ -951,10 +985,19 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 		relativeTime = p3cosd(360 * relativeTime) * 0.5f + 0.5f;
 
 		//bend elbow
-		i = a3hierarchyGetNodeIndex(currentHierarchyState->hierarchy, "r elbow");
+		i = a3hierarchyGetNodeIndex(currentHierarchyState->hierarchy, "r shoulder");
 		tmpMatPtr = currentHierarchyState->localSpaceTransforms + i;
 		tmpPos = tmpMatPtr->v3;
-		p3real4x4SetRotateZ(tmpMatPtr->m, relativeTime * 45.0f);
+		p3real4x4SetRotateXYZ(tmpMatPtr->m, 0, relativeTime * 45.0f, relativeTime * 45.0f);
+		tmpMatPtr->v3 = tmpPos;
+
+		// animate other joints
+		a3kinematicsSolveForward(currentHierarchyState);
+
+		i = a3hierarchyGetNodeIndex(currentHierarchyState->hierarchy, "l shoulder");
+		tmpMatPtr = currentHierarchyState->localSpaceTransforms + i;
+		tmpPos = tmpMatPtr->v3;
+		p3real4x4SetRotateXYZ(tmpMatPtr->m, 0, relativeTime * -45.0f, relativeTime * -45.0f);
 		tmpMatPtr->v3 = tmpPos;
 
 		// animate other joints
