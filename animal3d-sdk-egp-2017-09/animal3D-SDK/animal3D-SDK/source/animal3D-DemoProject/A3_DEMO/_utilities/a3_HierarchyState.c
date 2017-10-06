@@ -44,13 +44,18 @@ extern inline int a3hierarchyStateCreate(a3_HierarchyState *state_out, const a3_
 		state_out->hierarchy = hierarchy;
 
 		// allocate set of matrices in state
-		//	('local' points to contiguous array of all matrices and floats)
-		state_out->localSpaceTransforms = (p3mat4 *)malloc(count2 * sizeof(p3mat4) + count * sizeof(float));
+		//	('local' points to contiguous array of all matrices and poses)
+		state_out->localSpaceTransforms = (p3mat4 *)malloc(count2 * sizeof(p3mat4) + count * sizeof(a3_HierarchyNodePose));
 		state_out->objectSpaceTransforms = (state_out->localSpaceTransforms + count);
+		state_out->localPoseList = (a3_HierarchyNodePose*)(state_out->objectSpaceTransforms + count);
 
 		// set all matrices to identity
 		for (i = 0; i < count2; ++i)
 			p3real4x4SetIdentity(state_out->localSpaceTransforms[i].m);
+
+		// reset all poses
+		for (i = 0; i < count; ++i)
+			a3hierarchyNodePoseReset(state_out->localPoseList + i);
 
 		// return number of nodes
 		return count;
@@ -80,5 +85,70 @@ extern inline int a3hierarchyStateRelease(a3_HierarchyState *state)
 	return -1;
 }
 
-
 //-----------------------------------------------------------------------------
+
+// allocate pose set (resource data)
+extern inline int a3hierarchyPoseSetCreate(a3_HierarchyPoseSet* poseSet_out, const a3_Hierarchy* hierarchy, const unsigned int keyPoseCount)
+{
+	if (poseSet_out && !poseSet_out->hierarchy && hierarchy->nodes && keyPoseCount > 0)
+	{
+		const unsigned int nodeCount = hierarchy->numNodes;
+		const unsigned int totalPoses = keyPoseCount * nodeCount;
+		unsigned int i;
+
+		a3_HierarchyNodePose* posePtr;
+		
+		poseSet_out->hierarchy = hierarchy;
+		poseSet_out->keyPoseCount = keyPoseCount;
+
+		poseSet_out->poseListContiguous = (a3_HierarchyNodePose*)malloc(totalPoses * sizeof(a3_HierarchyNodePose) + nodeCount * sizeof(a3_HierarchyNodePose*));
+		poseSet_out->poseList = (a3_HierarchyNodePose**)(poseSet_out->poseListContiguous + totalPoses);
+
+		for (i = 0; i < totalPoses; ++i)
+			a3hierarchyNodePoseReset(poseSet_out->poseListContiguous + i);
+
+		// set node key pointers
+		for (i = 0, posePtr = poseSet_out->poseListContiguous; i < nodeCount; ++i, posePtr += keyPoseCount)
+		{
+			poseSet_out->poseList[i] = posePtr;
+		}
+
+		return keyPoseCount;
+	}
+
+	return -1;
+}
+
+// release
+extern inline int a3hierarchyPostSetRelease(a3_HierarchyPoseSet* poseSet)
+{
+	if (poseSet && poseSet->hierarchy)
+	{
+		free(poseSet->poseListContiguous);
+		poseSet->poseList = 0;
+		poseSet->hierarchy = 0;
+		poseSet->keyPoseCount = 0;
+		poseSet->poseListContiguous = 0;
+
+		return 1;
+	}
+	return -1;
+}
+
+// set default pose
+extern inline int a3hierarchyNodePoseReset(a3_HierarchyNodePose* pose)
+{
+	return -1;
+}
+
+// copy key pose from set to state (resource to state)
+extern inline int a3hierarchyStateCopyKeyPose(const a3_HierarchyState* state, const a3_HierarchyPoseSet* poseSet, const unsigned int keyPoseIndex)
+{
+	return -1;
+}
+
+// convert current state post to transforms
+extern inline int a3hierarchyStateConvertPose(const a3_HierarchyState* state)
+{
+	return -1;
+}

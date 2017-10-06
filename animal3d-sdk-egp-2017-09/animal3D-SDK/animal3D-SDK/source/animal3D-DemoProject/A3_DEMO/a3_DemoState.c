@@ -648,26 +648,11 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 		//	count = 20
 
 
-		/*
-			birb
-
-			0 root
-			1	spine
-			2		neck
-			3			head
-			4			r shoulder
-			5				r elbow
-			6				r wing bone 1
-			7					r wing bone 2
-			8					r elbow 2
-			9						r wing bone 3
-		
-		
-		*/
-
 		// ****TO-DO: 
 		// initialize and link skeleton
 		a3hierarchyCreate(demoState->skeleton, 28, 0);
+
+		// oof ouch owie
 		
 		a3hierarchySetNode(demoState->skeleton, 0, -1, "root");
 		a3hierarchySetNode(demoState->skeleton, 1, 0, "spine");

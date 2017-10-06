@@ -39,11 +39,45 @@
 extern "C"
 {
 #else	// !__cplusplus
+	typedef struct a3_HierarchyNodePose a3_HierarchyNodePose;
+	typedef struct a3_HierarchyPoseSet a3_HierarchyPoseSet;
 	typedef struct a3_HierarchyState	a3_HierarchyState;
 #endif	// __cplusplus
 
 	
 //-----------------------------------------------------------------------------
+
+	// pose for a single node (key pose)
+	struct a3_HierarchyNodePose
+	{
+		// rotation
+		// can be quat or 3 euler angles
+		p3vec4 orientation;
+
+		// translation
+		p3vec3 translation;
+
+		// scale
+		p3vec3 scale;
+	};
+
+	struct a3_HierarchyPoseSet
+	{
+		const a3_Hierarchy* hierarchy;
+
+		// pose set: all poses for all nodes
+		// 2d array of unknown size
+		// list[nodeIndex][poseIndex]
+		// accessing format ^^
+		a3_HierarchyNodePose** poseList;
+
+		// contiguous data
+		a3_HierarchyNodePose* poseListContiguous;
+
+		// number of keys
+		unsigned int keyPoseCount;
+	};
+
 
 	// hierarchy state structure, with a pointer to a hierarchy (decoupled) 
 	//	and transformations for kinematics
@@ -57,7 +91,13 @@ extern "C"
 
 		// object transformations (relative to root's parent's space)
 		p3mat4 *objectSpaceTransforms;
+
+		// local pose list
+		// used to calc local transform
+		a3_HierarchyNodePose* localPoseList;
 	};
+
+
 
 
 //-----------------------------------------------------------------------------
@@ -68,6 +108,23 @@ extern "C"
 	// release hierarchy state
 	inline int a3hierarchyStateRelease(a3_HierarchyState *state);
 
+
+//-----------------------------------------------------------------------------
+
+	// allocate pose set (resource data)
+	inline int a3hierarchyPoseSetCreate(a3_HierarchyPoseSet* poseSet_out, const a3_Hierarchy* hierarchy, const unsigned int keyPoseCount);
+
+	// release
+	inline int a3hierarchyPostSetRelease(a3_HierarchyPoseSet* poseSet);
+
+	// set default pose
+	inline int a3hierarchyNodePoseReset(a3_HierarchyNodePose* pose);
+
+	// copy key pose from set to state (resource to state)
+	inline int a3hierarchyStateCopyKeyPose(const a3_HierarchyState* state, const a3_HierarchyPoseSet* poseSet, const unsigned int keyPoseIndex);
+	
+	// convert current state post to transforms
+	inline int a3hierarchyStateConvertPose(const a3_HierarchyState* state);
 
 //-----------------------------------------------------------------------------
 
