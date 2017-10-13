@@ -159,12 +159,15 @@ extern "C"
 
 		// skeleton hierarchies and fixed state information
 		a3_Hierarchy skeleton[1];
-
+		a3_HierarchyPoseSet skeletonPoses[1];
+		
+		// ****TO-DO: delete this
 		p3vec3 skeletonBaseOffsets[64];
 
 		// hierarchy states for different modes
 		a3_HierarchyState skeletonState_procFK[1];
 		a3_HierarchyState skeletonState_ctrlFK[1];
+		a3_HierarchyState skeletonState_keyPoses[1];
 
 		// procedural animation values
 		float cycleTime, cycleDuration;
@@ -172,6 +175,9 @@ extern "C"
 		// controlled FK values
 		p3vec3 skeletonEulers[64];
 		unsigned int skeletonControlIndex;
+
+		// select index (pose-to-pose viewing)
+		unsigned int selectKeyPoseIndex;
 
 
 		//---------------------------------------------------------------------

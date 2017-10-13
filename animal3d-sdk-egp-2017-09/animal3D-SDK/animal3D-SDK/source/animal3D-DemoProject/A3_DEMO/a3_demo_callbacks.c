@@ -360,10 +360,10 @@ A3API void a3test_keyCharPress(a3_DemoState *demoState, int asciiKey)
 
 		// change mode
 	case '.':
-		demoState->kinematicsMode = (demoState->kinematicsMode + 1) % 2;
+		demoState->kinematicsMode = (demoState->kinematicsMode + 1) % 3;
 		break;
 	case ',':
-		demoState->kinematicsMode = (demoState->kinematicsMode + 1) % 2;
+		demoState->kinematicsMode = (demoState->kinematicsMode + 2) % 3;
 		break;
 
 	case 'x':

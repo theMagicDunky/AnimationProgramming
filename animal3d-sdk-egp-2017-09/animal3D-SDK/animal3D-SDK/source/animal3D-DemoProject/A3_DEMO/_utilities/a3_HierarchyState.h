@@ -124,7 +124,7 @@ extern "C"
 	inline int a3hierarchyStateCopyKeyPose(const a3_HierarchyState* state, const a3_HierarchyPoseSet* poseSet, const unsigned int keyPoseIndex);
 	
 	// convert current state post to transforms
-	inline int a3hierarchyStateConvertPose(const a3_HierarchyState* state);
+	inline int a3hierarchyStateConvertPose(const a3_HierarchyState* state, const unsigned int useQuat);
 
 //-----------------------------------------------------------------------------
 

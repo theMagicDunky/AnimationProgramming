@@ -23,6 +23,7 @@
 */
 
 #include "a3_HierarchyState.h"
+#include "a3_Quaternion.h"
 
 #include <stdlib.h>
 
@@ -138,17 +139,66 @@ extern inline int a3hierarchyPostSetRelease(a3_HierarchyPoseSet* poseSet)
 // set default pose
 extern inline int a3hierarchyNodePoseReset(a3_HierarchyNodePose* pose)
 {
+	if (pose)
+	{
+		pose->orientation = p3wVec4;
+		pose->translation = p3zeroVec3;
+		pose->scale = p3oneVec3;
+		return 1;
+	}
+
 	return -1;
 }
 
 // copy key pose from set to state (resource to state)
 extern inline int a3hierarchyStateCopyKeyPose(const a3_HierarchyState* state, const a3_HierarchyPoseSet* poseSet, const unsigned int keyPoseIndex)
 {
+	if (state && poseSet && state->hierarchy && poseSet->hierarchy && keyPoseIndex < poseSet->keyPoseCount)
+	{
+		unsigned int i;
+
+		for (i = 0; i < state->hierarchy->numNodes; ++i)
+		{
+			state->localPoseList[i] = poseSet->poseList[i][keyPoseIndex];
+		}
+
+		return keyPoseIndex;
+	}
+
 	return -1;
 }
 
 // convert current state post to transforms
-extern inline int a3hierarchyStateConvertPose(const a3_HierarchyState* state)
+extern inline int a3hierarchyStateConvertPose(const a3_HierarchyState* state, const unsigned int useQuat)
 {
+	if (state && state->hierarchy)
+	{
+		unsigned int i;
+		const a3_HierarchyNodePose* posePtr;
+		p3mat4* localMatPtr;
+
+		for (i = 0; i < state->hierarchy->numNodes; ++i)
+		{
+			posePtr = state->localPoseList + i;
+			localMatPtr = state->localSpaceTransforms + i;
+
+			if (useQuat)
+			{
+				a3quatConvertToMat4(localMatPtr->m, posePtr->orientation.v, posePtr->translation.v);
+			}
+			else
+			{
+				p3real4x4SetRotateZYX(localMatPtr->m,
+					posePtr->orientation.x, posePtr->orientation.y, posePtr->orientation.z);
+				localMatPtr->v3.xyz = posePtr->translation;
+			}
+
+			//scale
+			p3real3MulS(localMatPtr->v0.v, posePtr->scale.x);
+			p3real3MulS(localMatPtr->v1.v, posePtr->scale.y);
+			p3real3MulS(localMatPtr->v2.v, posePtr->scale.z);
+		}
+	}
+
 	return -1;
 }
