@@ -611,6 +611,8 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 	const char *const animationStream = "./data/anim_skeletal.dat";
 	FILE *fp;
 
+	a3_HierarchyNodePose tmpPose[1];
+
 	if (demoState->streaming && a3fileStreamOpenRead(fileStream, animationStream))
 	{
 		// load hierarchies
@@ -687,54 +689,69 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 		a3hierarchyPoseSetCreate(demoState->skeletonPoses, demoState->skeleton, 4);
 
 		{
-			unsigned int j;
+			//unsigned int j;
+
+			// ****TO-DO: delete this
+			p3vec3 skeletonBaseOffsets[64] = { 0 };
+
 
 			// ****TO-DO: 
 			// set skeleton base pose offsets (just translate for now)
 			// note: local relationships can be denoted like this: child -> parent
-			p3real3Set(demoState->skeletonBaseOffsets[0].v, 0.0f, 0.0f, 4.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[1].v, 0.0f, 0.5f, 2.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[2].v, 0.0f, 1.25f, 2.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[3].v, 0.0f, 0.5f, 0.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[4].v, 2.0f, -0.25f, 0.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[5].v, 1.5f, 0.25f, -0.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[6].v, 0.0f, -1.0f, -2.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[7].v, 0.0f, -1.0f, -2.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[8].v, 1.0f, 0.25f, -0.75f);
-			p3real3Set(demoState->skeletonBaseOffsets[9].v, 0.0f, -1.0f, -2.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[10].v, 1.0f, 0.0f, -0.25f);
-			p3real3Set(demoState->skeletonBaseOffsets[11].v, 0.0f, -0.5f, -1.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[12].v, 0.0f, 0.75f, -1.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[13].v, 0.25f, 0.25f, 0.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[14].v, 0.0f, 0.25f, 0.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[15].v, -0.25f, 0.25f, 0.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[16].v, -2.0f, -0.25f, 0.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[17].v, -1.5f, 0.25f, -0.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[18].v, 0.0f, -1.0f, -2.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[19].v, 0.0f, -1.0f, -2.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[20].v, -1.0f, 0.25f, -0.75f);
-			p3real3Set(demoState->skeletonBaseOffsets[21].v, 0.0f, -1.0f, -2.5f);
-			p3real3Set(demoState->skeletonBaseOffsets[22].v, -1.0f, 0.0f, -0.25f);
-			p3real3Set(demoState->skeletonBaseOffsets[23].v, 0.0f, -0.5f, -1.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[24].v, 0.0f, 0.75f, -1.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[25].v, 0.25f, 0.25f, 0.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[26].v, 0.0f, 0.25f, 0.0f);
-			p3real3Set(demoState->skeletonBaseOffsets[27].v, -0.25f, 0.25f, 0.0f);
+			p3real3Set(skeletonBaseOffsets[0].v, 0.0f, 0.0f, 4.0f);
+			p3real3Set(skeletonBaseOffsets[1].v, 0.0f, 0.5f, 2.0f);
+			p3real3Set(skeletonBaseOffsets[2].v, 0.0f, 1.25f, 2.0f);
+			p3real3Set(skeletonBaseOffsets[3].v, 0.0f, 0.5f, 0.5f);
+			p3real3Set(skeletonBaseOffsets[4].v, 2.0f, -0.25f, 0.5f);
+			p3real3Set(skeletonBaseOffsets[5].v, 1.5f, 0.25f, -0.5f);
+			p3real3Set(skeletonBaseOffsets[6].v, 0.0f, -1.0f, -2.5f);
+			p3real3Set(skeletonBaseOffsets[7].v, 0.0f, -1.0f, -2.5f);
+			p3real3Set(skeletonBaseOffsets[8].v, 1.0f, 0.25f, -0.75f);
+			p3real3Set(skeletonBaseOffsets[9].v, 0.0f, -1.0f, -2.5f);
+			p3real3Set(skeletonBaseOffsets[10].v, 1.0f, 0.0f, -0.25f);
+			p3real3Set(skeletonBaseOffsets[11].v, 0.0f, -0.5f, -1.0f);
+			p3real3Set(skeletonBaseOffsets[12].v, 0.0f, 0.75f, -1.0f);
+			p3real3Set(skeletonBaseOffsets[13].v, 0.25f, 0.25f, 0.0f);
+			p3real3Set(skeletonBaseOffsets[14].v, 0.0f, 0.25f, 0.0f);
+			p3real3Set(skeletonBaseOffsets[15].v, -0.25f, 0.25f, 0.0f);
+			p3real3Set(skeletonBaseOffsets[16].v, -2.0f, -0.25f, 0.5f);
+			p3real3Set(skeletonBaseOffsets[17].v, -1.5f, 0.25f, -0.5f);
+			p3real3Set(skeletonBaseOffsets[18].v, 0.0f, -1.0f, -2.5f);
+			p3real3Set(skeletonBaseOffsets[19].v, 0.0f, -1.0f, -2.5f);
+			p3real3Set(skeletonBaseOffsets[20].v, -1.0f, 0.25f, -0.75f);
+			p3real3Set(skeletonBaseOffsets[21].v, 0.0f, -1.0f, -2.5f);
+			p3real3Set(skeletonBaseOffsets[22].v, -1.0f, 0.0f, -0.25f);
+			p3real3Set(skeletonBaseOffsets[23].v, 0.0f, -0.5f, -1.0f);
+			p3real3Set(skeletonBaseOffsets[24].v, 0.0f, 0.75f, -1.0f);
+			p3real3Set(skeletonBaseOffsets[25].v, 0.25f, 0.25f, 0.0f);
+			p3real3Set(skeletonBaseOffsets[26].v, 0.0f, 0.25f, 0.0f);
+			p3real3Set(skeletonBaseOffsets[27].v, -0.25f, 0.25f, 0.0f);
 
 			//convert base translations into poses
-			for (i = 0; i < demoState->skeleton->numNodes; ++i)
+			/*for (i = 0; i < demoState->skeleton->numNodes; ++i)
 			{
 				for (j = 0; j < demoState->skeletonPoses->keyPoseCount; ++j)
 				{
 					demoState->skeletonPoses->poseList[i][j].translation
-						= demoState->skeletonBaseOffsets[i];
+						= skeletonBaseOffsets[i];
 				}
+			}*/
+
+			for (i = 0; i < demoState->skeleton->numNodes; ++i)
+			{
+				// set tmp pose add to set
+				a3hierarchyNodePoseSet(tmpPose, p3zeroVec4, skeletonBaseOffsets[i], p3oneVec3);
+				a3hierarchyPoseSetInitNodePose(demoState->skeletonPoses, tmpPose, i, -1);
 			}
 		}
 
 		// how to change joint poses manually
 		i = a3hierarchyGetNodeIndex(demoState->skeleton, "r elbow");
-		demoState->skeletonPoses->poseList[i][1].orientation.z = 45.0f;
+		//demoState->skeletonPoses->poseList[i][1].orientation.z = 45.0f;
+		a3hierarchyNodePoseReset(tmpPose);
+		tmpPose->orientation.z = 45.0f;
+		a3hierarchyPoseSetInitNodePose(demoState->skeletonPoses, tmpPose, i, 1);
+
 	
 		// save hierarchies
 		a3fileStreamWriteObject(fileStream, demoState->skeleton, (a3_FileStreamWriteFunc)a3hierarchySaveBinary);
@@ -762,9 +779,9 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 	a3hierarchyStateCopyKeyPose(demoState->skeletonState_keyPoses, demoState->skeletonPoses, 0);
 
 	// 2 convert pose to matrix
-	a3hierarchyStateConvertPose(demoState->skeletonState_procFK, 0);
-	a3hierarchyStateConvertPose(demoState->skeletonState_ctrlFK, 0);
-	a3hierarchyStateConvertPose(demoState->skeletonState_keyPoses, 0);
+	a3hierarchyStateConvertPose(demoState->skeletonState_procFK, demoState->skeletonPoses, 0);
+	a3hierarchyStateConvertPose(demoState->skeletonState_ctrlFK, demoState->skeletonPoses, 0);
+	a3hierarchyStateConvertPose(demoState->skeletonState_keyPoses, demoState->skeletonPoses, 0);
 
 
 	// set base states
@@ -1087,7 +1104,7 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 		a3hierarchyStateCopyKeyPose(currentHierarchyState, demoState->skeletonPoses, 1);
 
 		// 2 convert pose to matrix
-		a3hierarchyStateConvertPose(currentHierarchyState, 0);
+		a3hierarchyStateConvertPose(currentHierarchyState, demoState->skeletonPoses, 0);
 
 		// solve fk
 		a3kinematicsSolveForward(currentHierarchyState);

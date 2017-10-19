@@ -161,9 +161,6 @@ extern "C"
 		a3_Hierarchy skeleton[1];
 		a3_HierarchyPoseSet skeletonPoses[1];
 		
-		// ****TO-DO: delete this
-		p3vec3 skeletonBaseOffsets[64];
-
 		// hierarchy states for different modes
 		a3_HierarchyState skeletonState_procFK[1];
 		a3_HierarchyState skeletonState_ctrlFK[1];
