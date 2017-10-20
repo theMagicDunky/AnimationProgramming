@@ -248,7 +248,7 @@ extern inline int a3hierarchyStateCalcInBetweenPoses(const a3_HierarchyState * s
 		// interpolate between the poses
 		// slerp rotations
 		// lerp positions
-		const a3_HierarchyNodePose *nodeptr0, *nodePtr1;
+		const a3_HierarchyNodePose *nodePtr0, *nodePtr1;
 		a3_HierarchyNodePose *resultPosePtr;
 
 		// 4 ways to do this shit
@@ -261,25 +261,90 @@ extern inline int a3hierarchyStateCalcInBetweenPoses(const a3_HierarchyState * s
 			// interpolate between both
 			if (usingQuaternions)
 			{
+				for (i = 0; i < state->hierarchy->numNodes; ++i)
+				{
+					resultPosePtr = state->localPoseList + i;
+					nodePtr0 = poseSet->poseList[i] + poseIndex0;
+					nodePtr1 = poseSet->poseList[i] + poseIndex1;
 
+					a3quatUnitSLERP(resultPosePtr->orientation.v, nodePtr0->orientation.v, nodePtr1->orientation.v, t);
+					p3real3Lerp(resultPosePtr->translation.v, nodePtr0->translation.v, nodePtr1->translation.v, t);
+					p3real3Lerp(resultPosePtr->scale.v, nodePtr0->scale.v, nodePtr1->scale.v, t);
+				}
 			}
 			else
 			{
+				for (i = 0; i < state->hierarchy->numNodes; ++i)
+				{
+					resultPosePtr = state->localPoseList + i;
+					nodePtr0 = poseSet->poseList[i] + poseIndex0;
+					nodePtr1 = poseSet->poseList[i] + poseIndex1;
 
+					p3real3Lerp(resultPosePtr->orientation.v, nodePtr0->orientation.v, nodePtr1->orientation.v, t);
+					p3real3Lerp(resultPosePtr->translation.v, nodePtr0->translation.v, nodePtr1->translation.v, t);
+					p3real3Lerp(resultPosePtr->scale.v, nodePtr0->scale.v, nodePtr1->scale.v, t);
+				}
 			}
 		}
 		else if (poseIndex0 == poseSet->keyPoseCount)// && poseIndex1 != poseSet->keyPoseCount)
 		{
+			if (usingQuaternions)
+			{
+				for (i = 0; i < state->hierarchy->numNodes; ++i)
+				{
+					resultPosePtr = state->localPoseList + i;
+					nodePtr1 = poseSet->poseList[i] + poseIndex1;
 
+					a3quatUnitSLERP(resultPosePtr->orientation.v, p3wVec4.v, nodePtr1->orientation.v, t);
+					p3real3Lerp(resultPosePtr->translation.v, p3zeroVec3.v, nodePtr1->translation.v, t);
+					p3real3Lerp(resultPosePtr->scale.v, p3oneVec3.v, nodePtr1->scale.v, t);
+				}
+			}
+			else
+			{
+				for (i = 0; i < state->hierarchy->numNodes; ++i)
+				{
+					resultPosePtr = state->localPoseList + i;
+					nodePtr1 = poseSet->poseList[i] + poseIndex1;
+
+					p3real3Lerp(resultPosePtr->orientation.v, p3wVec4.v, nodePtr1->orientation.v, t);
+					p3real3Lerp(resultPosePtr->translation.v, p3zeroVec3.v, nodePtr1->translation.v, t);
+					p3real3Lerp(resultPosePtr->scale.v, p3oneVec3.v, nodePtr1->scale.v, t);
+				}
+			}
 		}
 		else if (/*poseIndex0 != poseSet->keyPoseCount && */poseIndex1 == poseSet->keyPoseCount)
 		{
+			if (usingQuaternions)
+			{
+				for (i = 0; i < state->hierarchy->numNodes; ++i)
+				{
+					resultPosePtr = state->localPoseList + i;
+					nodePtr0 = poseSet->poseList[i] + poseIndex1;
 
+					a3quatUnitSLERP(resultPosePtr->orientation.v, nodePtr1->orientation.v, p3wVec4.v, t);
+					p3real3Lerp(resultPosePtr->translation.v, nodePtr1->translation.v, p3zeroVec3.v, t);
+					p3real3Lerp(resultPosePtr->scale.v, nodePtr1->scale.v, p3oneVec3.v, t);
+				}
+			}
+			else
+			{
+				for (i = 0; i < state->hierarchy->numNodes; ++i)
+				{
+					resultPosePtr = state->localPoseList + i;
+					nodePtr1 = poseSet->poseList[i] + poseIndex1;
+
+					p3real3Lerp(resultPosePtr->orientation.v, nodePtr1->orientation.v, p3wVec4.v, t);
+					p3real3Lerp(resultPosePtr->translation.v, nodePtr1->translation.v, p3zeroVec3.v, t);
+					p3real3Lerp(resultPosePtr->scale.v, nodePtr1->scale.v, p3oneVec3.v, t);
+				}
+			}
 		}
 		else// if (poseIndex0 == poseSet->keyPoseCount && poseIndex1 == poseSet->keyPoseCount)
 		{
 			// just set it
-
+			for (i = 0; i < state->hierarchy->numNodes; ++i)
+				a3hierarchyNodePoseReset(state->localPoseList + i);
 		}
 
 	}

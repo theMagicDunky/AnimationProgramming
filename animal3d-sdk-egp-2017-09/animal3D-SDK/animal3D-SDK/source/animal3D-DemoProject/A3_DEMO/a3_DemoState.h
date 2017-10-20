@@ -176,6 +176,10 @@ extern "C"
 		// select index (pose-to-pose viewing)
 		unsigned int selectKeyPoseIndex;
 
+		// pose to pose controller
+		unsigned int currentKeyPoseIndex, nextKeyPoseIndex;
+		float poseTime, poseDuration;
+
 
 		//---------------------------------------------------------------------
 		// object arrays: organized as anonymous unions for two reasons: 

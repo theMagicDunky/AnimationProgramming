@@ -795,6 +795,12 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 	a3kinematicsSolveForward(demoState->skeletonState_procFK);
 	a3kinematicsSolveForward(demoState->skeletonState_ctrlFK);
 	a3kinematicsSolveForward(demoState->skeletonState_keyPoses);
+
+	// init controller
+	demoState->currentKeyPoseIndex = 0;
+	demoState->nextKeyPoseIndex = demoState->currentKeyPoseIndex + 1;
+	demoState->poseTime = 0.0f;
+	demoState->poseDuration = 2.5f;
 }
 
 // unload animation
@@ -805,6 +811,7 @@ void a3demo_unloadAnimation(a3_DemoState *demoState)
 
 	a3hierarchyStateRelease(demoState->skeletonState_procFK);
 	a3hierarchyStateRelease(demoState->skeletonState_ctrlFK);
+	a3hierarchyStateRelease(demoState->skeletonPoses);
 }
 
 
@@ -1100,8 +1107,25 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 		currentHierarchyState = demoState->skeletonState_keyPoses;
 
 		// 1 copy key
-																			// test index
+		/*																	// test index
 		a3hierarchyStateCopyKeyPose(currentHierarchyState, demoState->skeletonPoses, 1);
+
+		*/
+
+		{
+			demoState->poseTime += (float)dt;
+			if (demoState->poseTime >= demoState->poseDuration)
+			{
+				demoState->poseTime -= demoState->poseDuration;
+				demoState->currentKeyPoseIndex = demoState->nextKeyPoseIndex;
+				demoState->nextKeyPoseIndex = (demoState->currentKeyPoseIndex + 1)
+					% demoState->skeletonPoses->keyPoseCount;
+			}
+			relativeTime = demoState->poseTime / demoState->poseDuration;
+
+			//interpolate between poses
+			a3hierarchyStateCalcInBetweenPoses(currentHierarchyState, demoState->skeletonPoses, demoState->currentKeyPoseIndex, demoState->nextKeyPoseIndex, relativeTime, 0);
+		}
 
 		// 2 convert pose to matrix
 		a3hierarchyStateConvertPose(currentHierarchyState, demoState->skeletonPoses, 0);
