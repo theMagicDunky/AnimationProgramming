@@ -24,48 +24,53 @@
 
 #include "a3_Kinematics.h"
 
+#include "a3_Quaternion.h"
+
 
 //-----------------------------------------------------------------------------
 
 // FK solver
 extern inline int a3kinematicsSolveForward(const a3_HierarchyState *hierarchyState)
 {
-	return a3kinematicsSolveForwardPartial(hierarchyState, 0);
+	return a3kinematicsSolveForwardPartial(hierarchyState, 0, hierarchyState->poseGroup->hierarchy->numNodes);
 }
 
 // partial FK solver
-extern inline int a3kinematicsSolveForwardPartial(const a3_HierarchyState *hierarchyState, const unsigned int firstIndex)
+extern inline int a3kinematicsSolveForwardPartial(const a3_HierarchyState *hierarchyState, const unsigned int firstIndex, const unsigned int nodeCount)
 {
-	if (hierarchyState && hierarchyState->hierarchy && firstIndex < hierarchyState->hierarchy->numNodes)
+	if (hierarchyState && hierarchyState->poseGroup && 
+		firstIndex < hierarchyState->poseGroup->hierarchy->numNodes && nodeCount)
 	{
 		// ****TO-DO: implement forward kinematics algorithm
 		//	- for all nodes starting at first index
-		//		- if node is root (no parent)
-		//			- copy local matrix to object matrix
-		//		- else
+		//		- if node is not root (has parent node)
 		//			- object matrix = parent object matrix * local matrix
+		//		- else
+		//			- copy local matrix to object matrix
 
-		unsigned int i;
 		int parentIndex;
-		for (i = firstIndex; i < hierarchyState->hierarchy->numNodes; ++i)
-		{
-			parentIndex = hierarchyState->hierarchy->nodes[i].parentIndex;
+		unsigned int i, end = firstIndex + nodeCount;
+		end = minimum(end, hierarchyState->poseGroup->hierarchy->numNodes);
 
-			if(parentIndex < 0)
-				hierarchyState->objectSpaceTransforms[i] = hierarchyState->localSpaceTransforms[i];
+		for (i = firstIndex; i < end; ++i)
+		{
+			parentIndex = hierarchyState->poseGroup->hierarchy->nodes[i].parentIndex;
+			if (parentIndex >= 0)
+				p3real4x4Product(hierarchyState->objectSpace->transform[i].m,
+					hierarchyState->objectSpace->transform[parentIndex].m,
+					hierarchyState->localSpace->transform[i].m);
 			else
-			{
-				p3real4x4Product(hierarchyState->objectSpaceTransforms[i].m, 
-					hierarchyState->objectSpaceTransforms[parentIndex].m, 
-					hierarchyState->localSpaceTransforms[i].m);
-			}
+				hierarchyState->objectSpace->transform[i] = hierarchyState->localSpace->transform[i];
 		}
 
-		// done
-		return 1;
+		// done, return number of nodes updated
+		return (end - firstIndex);
 	}
 	return -1;
 }
+
+
+//-----------------------------------------------------------------------------
 
 
 //-----------------------------------------------------------------------------

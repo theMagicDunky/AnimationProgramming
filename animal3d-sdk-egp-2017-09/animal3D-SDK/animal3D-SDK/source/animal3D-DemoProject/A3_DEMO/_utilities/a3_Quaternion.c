@@ -1,25 +1,25 @@
 /*
-Copyright 2011-2017 Daniel S. Buckstein
+	Copyright 2011-2017 Daniel S. Buckstein
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+		http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
 */
 
 /*
-animal3D SDK: Minimal 3D Animation Framework
-By Daniel S. Buckstein
-
-a3_Quaternion.c
-Quaternion utility implementations.
+	animal3D SDK: Minimal 3D Animation Framework
+	By Daniel S. Buckstein
+	
+	a3_Quaternion.c
+	Quaternion utility implementations.
 */
 
 #include "a3_Quaternion.h"
@@ -48,21 +48,11 @@ extern inline int a3quatCreateAxisAngle(a3quatp q_out, const p3real3p axis_unit,
 {
 	if (q_out && axis_unit)
 	{
-		//
+		// ****TO-DO: implement
 		// v = sin(angle / 2) * n
 		// w = cos(angle / 2)
-		const float halfAngle = 0.5f * angle_degrees;
-		const float c = p3cosd(halfAngle);
-		const float s = p3sind(halfAngle);
 
-		// assume axis is normalized
-		// set values
-		q_out[0] = s * axis_unit[0];	// x
-		q_out[1] = s * axis_unit[1];	// y
-		q_out[2] = s * axis_unit[2];	// z
-		q_out[3] = c;					// w
-
-										// done
+		// done
 		return 1;
 	}
 	return 0;
@@ -79,16 +69,7 @@ extern inline int a3quatCreateDelta(a3quatp q_out, const p3real3p v0_unit, const
 		//	-> a cross b = sin(angle) * n
 		// Since a quaternion uses half angle, we can solve by using 
 		//	the unit halfway vector as 'b'!!!
-		p3vec3 h;
-		h.x = v0_unit[0];
-		h.y = v0_unit[1];
-		h.z = v0_unit[2];
 
-		p3real3Add(&h, v1_unit);
-		p3real3DivS(&h, p3real3Length(v0_unit) + p3real3Length(v1_unit));
-
-		p3real3Cross(q_out, v0_unit, &h);
-		q_out[3] = p3real3Dot(v0_unit, &h);
 		// done
 		return 1;
 	}
@@ -106,25 +87,6 @@ extern inline int a3quatGetAxisAngle(p3real3p axis_out, p3real *angle_degrees_ou
 		//	-> extract angle by taking inverse cosine of W and double it
 		// else
 		//	-> return all zeros
-		if (q[3] > -1 && q[3] < 1)
-		{
-			// axis
-			//p3real3DivS(axis_out, p3real3length(axis_out));
-			axis_out[0] = q[0];
-			axis_out[1] = q[1];
-			axis_out[2] = q[2];
-			p3real3DivS(axis_out, p3real3Length(axis_out));
-
-			// get the angle
-			*angle_degrees_out = 2 * p3acosd(q[3]);
-		}
-		else
-		{
-			axis_out[0] = 0;
-			axis_out[1] = 0;
-			axis_out[2] = 0;
-			float angle_degrees_out = 0;
-		}
 
 		// done
 		return 1;
@@ -140,11 +102,6 @@ extern inline int a3quatConjugate(a3quatp qConj_out, const a3quatp q)
 		// ****TO-DO: implement
 		// vector part is negative
 
-		qConj_out[0] = -q[0];
-		qConj_out[1] = -q[1];
-		qConj_out[2] = -q[2];
-		qConj_out[3] = q[3];
-
 		// done
 		return 1;
 	}
@@ -158,16 +115,6 @@ extern inline int a3quatInverse(a3quatp qInv_out, const a3quatp q)
 	{
 		// ****TO-DO: implement
 		// conjugate divided by squared magnitude
-
-		float magnitude = (q[0] * q[0]) + (q[1] * q[1]) + (q[2] * q[2]) + (q[3] * q[3]);
-
-		//get conjugate
-		a3quatConjugate(qInv_out, q);
-
-		qInv_out[0] = qInv_out[0] / magnitude;
-		qInv_out[1] = qInv_out[1] / magnitude;
-		qInv_out[2] = qInv_out[2] / magnitude;
-		qInv_out[3] = qInv_out[3] / magnitude;
 
 		// done
 		return 1;
@@ -187,11 +134,6 @@ extern inline int a3quatConcat(a3quatp qConcat_out, const a3quatp qL, const a3qu
 		//	z = w0z1 + x0y1 - y0x1 + z0w1
 		//	w = w0w1 - x0x1 - y0y1 - z0z1
 
-		qConcat_out[0] = (qL[3] * qR[0]) + (qL[0] * qR[3]) + (qL[1] * qR[2]) - (qL[2] * qR[1]);
-		qConcat_out[1] = (qL[3] * qR[1]) - (qL[0] * qR[2]) + (qL[1] * qR[3]) + (qL[2] * qR[0]);
-		qConcat_out[2] = (qL[3] * qR[2]) + (qL[0] * qR[1]) - (qL[1] * qR[0]) + (qL[2] * qR[3]);
-		qConcat_out[3] = (qL[3] * qR[3]) - (qL[0] * qR[0]) - (qL[1] * qR[1]) - (qL[2] * qR[2]);
-
 		// done
 		return 1;
 	}
@@ -207,38 +149,6 @@ extern inline int a3quatRotateVec3(p3real3p vRot_out, const a3quatp q, const p3r
 		// expand shortened formula: 
 		//	v' = v + (r + r)x(r x v + wv)
 
-		// r
-
-		/*p3vec3 tempR;
-
-		tempR.x = q[0];
-		tempR.y = q[1];
-		tempR.z = q[2];
-
-		p3real3p rrrrrrrrr = tempR;
-		p3real3Add()*/
-
-		// r is the vector of q
-		p3real3p* r = q;
-		p3real3p* r2;
-		p3real3Set(r2, q[0], q[1], q[2]);
-		p3real3Add(r2, r);
-
-		p3real3p* rvCross;
-		p3real3p* wv;
-		p3real3Set(wv, v[0], v[1], v[2]);
-		p3real3Cross(rvCross, r, v);
-
-		p3real3MulS(wv, q[3]);
-
-		p3real3Add(rvCross, wv);
-
-		p3real3p* bigCross;
-		p3real3Cross(bigCross, r2, rvCross);
-		p3real3Add(v, bigCross);
-		vRot_out = v;
-
-
 		// done
 		return 1;
 	}
@@ -252,8 +162,6 @@ extern inline int a3quatRotateVec4(p3real4p vRot_out, const a3quatp q, const p3r
 	{
 		// ****TO-DO: implement
 		// same as above but set w component
-		a3quatRotateVec3(vRot_out, q, v);
-		vRot_out[3] = q[3];
 
 		// done
 		return 1;
@@ -269,58 +177,6 @@ extern inline int a3quatUnitSLERP(a3quatp qSlerp_out, const a3quatp q0_unit, con
 		// ****TO-DO: implement
 		// PRO TIP: if "angle" is negative, flip second quaternion
 		// PRO TIP: raw SLERP formula is not enough; what if inputs are parallel?
-		// q = sin((1 - t)theta)q0 + sin(t theta)q1 / sin(theta)
-		// theta = acos(q0 dot q1)
-		float d = p3real4Dot(q0_unit, q1_unit);
-		a3quat q1b;
-		p3real *q1ptr = q1_unit;
-
-		if (d < 0)
-		{
-			// flip the quaternion
-			// nothing actually changes the rotation
-			// this avoids parallels
-			d = -d;
-			//	this does the same thing in a function	p3real4GetNegative(q1b, q1_unit);
-			q1b[0] = -q1_unit[0];
-			q1b[1] = -q1_unit[1];
-			q1b[2] = -q1_unit[2];
-			q1b[3] = -q1_unit[3];
-			q1ptr = q1b;
-		}
-
-		// slerp cases
-		if (d < 1)
-		{
-			// slerp if within range for acos
-			float theta = p3acosd(d);
-			float sInv = 1.0f / p3sind(theta);
-			float s0 = sInv * p3sind((1 - t) * theta);
-			float s1 = sInv * p3sind(t * theta);
-
-
-			qSlerp_out[0] = s0 * q0_unit[0] + s1 * q1ptr[0];	// x
-			qSlerp_out[1] = s0 * q0_unit[1] + s1 * q1ptr[1];	// y
-			qSlerp_out[2] = s0 * q0_unit[2] + s1 * q1ptr[2];	// z
-			qSlerp_out[3] = s0 * q0_unit[3] + s1 * q1ptr[3];	// w
-		}
-		else if (d >= 1)
-		{
-			// if "over parallel"
-			// nlerp
-			p3real4Lerp(qSlerp_out, q0_unit, q1ptr, t);
-			p3real4Normalize(qSlerp_out);
-		}
-		else	// d == 1
-		{
-			// if d == 1
-			// q0
-			p3real4SetReal4(qSlerp_out, q0_unit);
-		}
-
-
-
-
 
 		// done
 		return 1;
@@ -339,32 +195,6 @@ extern inline int a3quatConvertToMat3(p3real3x3p m_out, const a3quatp q)
 		//	m_out[column][row]
 		//	e.g. upper-right would be m_out[2][0]
 
-		const float
-			ww = q[3] * q[3],
-			xx = q[0] * q[0],
-			yy = q[1] * q[1],
-			zz = q[2] * q[2],
-
-			xy2 = q[0] * q[1] * 2.0f,
-			xz2 = q[0] * q[2] * 2.0f,
-			yz2 = q[1] * q[2] * 2.0f,
-			wx2 = q[3] * q[0] * 2.0f,
-			wy2 = q[3] * q[1] * 2.0f,
-			wz2 = q[3] * q[2] * 2.0f;
-
-		// column 1
-		m_out[0][0] = ww + xx - yy - zz;
-		m_out[0][1] = xy2 + wz2;
-		m_out[0][2] = xz2 - wy2;
-		// column 2
-		m_out[1][0] = xy2 - wz2;
-		m_out[1][1] = ww - xx + yy - zz;
-		m_out[1][2] = yz2 + wx2;
-		// column 3
-		m_out[2][0] = xz2 + wy2;
-		m_out[2][1] = yz2 - wx2;
-		m_out[2][2] = ww - xx - yy + zz;
-
 		// done
 		return 1;
 	}
@@ -380,37 +210,6 @@ extern inline int a3quatConvertToMat4(p3real4x4p m_out, const a3quatp q, const p
 		// same as above but copy translate into fourth column
 		//	and setting bottom row to (0, 0, 0, 1)
 		// NOTE: matrices are COLUMN-MAJOR
-		const float
-			ww = q[3] * q[3],
-			xx = q[0] * q[0],
-			yy = q[1] * q[1],
-			zz = q[2] * q[2],
-
-			xy2 = q[0] * q[1] * 2.0f,
-			xz2 = q[0] * q[2] * 2.0f,
-			yz2 = q[1] * q[2] * 2.0f,
-			wx2 = q[3] * q[0] * 2.0f,
-			wy2 = q[3] * q[1] * 2.0f,
-			wz2 = q[3] * q[2] * 2.0f;
-		// column 1
-		m_out[0][0] = ww + xx - yy - zz;
-		m_out[0][1] = xy2 + wz2;
-		m_out[0][2] = xz2 - wy2;
-		// column 2
-		m_out[1][0] = xy2 - wz2;
-		m_out[1][1] = ww - xx + yy - zz;
-		m_out[1][2] = yz2 + wx2;
-		// column 3
-		m_out[2][0] = xz2 + wy2;
-		m_out[2][1] = yz2 - wx2;
-		m_out[2][2] = ww - xx - yy + zz;
-		// column 4
-		m_out[3][0] = translate[0];
-		m_out[3][1] = translate[1];
-		m_out[3][2] = translate[2];
-		// row 4
-		m_out[0][3] = m_out[1][3] = m_out[2][3] = 0.0f;
-		m_out[3][3] = 1.0f;
 
 		// done
 		return 1;

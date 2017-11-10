@@ -154,29 +154,31 @@ extern "C"
 		// animation variables and objects
 
 		// update and display modes
-		int kinematicsMode;
-		int displayBoneAxes;
+		int animationMode, animationModeCount;
+		int displayBoneAxes, displayBoneNames;
 
-		// skeleton hierarchies and fixed state information
+		// whole object poses (could be a resource)
+		a3_HierarchyNodePose objectPoses[2];
+
+		// whole object pose blend result (not a resource)
+		a3_HierarchyNodePose objectPoseState_blend[1];
+
+		// skeleton hierarchy (resource)
 		a3_Hierarchy skeleton[1];
-		a3_HierarchyPoseSet skeletonPoses[1];
-		
-		// hierarchy states for different modes
-		a3_HierarchyState skeletonState_procFK[1];
-		a3_HierarchyState skeletonState_ctrlFK[1];
-		a3_HierarchyState skeletonState_keyPoses[1];
 
-		// procedural animation values
-		float cycleTime, cycleDuration;
+		// pose set for skeleton (resource)
+		a3_HierarchyPoseGroup skeletonPoses[1];
 
-		// controlled FK values
-		p3vec3 skeletonEulers[64];
-		unsigned int skeletonControlIndex;
+		// pose container for blending (not a resource)
+		a3_HierarchyPoseGroup skeletonPoses_blend[1];
 
-		// select index (pose-to-pose viewing)
-		unsigned int selectKeyPoseIndex;
+		// hierarchy states for different modes (not a resource)
+		a3_HierarchyState skeletonState_blend[1];
 
-		// pose to pose controller
+		// blend control parameter
+		float blendAlpha, targetBlendAlpha, targetBlendAlphaSmoothing;
+
+		// pose-to-pose controller
 		unsigned int currentKeyPoseIndex, nextKeyPoseIndex;
 		float poseTime, poseDuration;
 
@@ -194,6 +196,7 @@ extern "C"
 				a3_DemoSceneObject
 					cameraObject[1],					// transform for camera
 					lightObject[1],						// transform for light
+					blendingObject[1],					// pose blending object
 					skeletonObject[1];					// skeletal animation object
 			};
 		};
@@ -312,8 +315,9 @@ extern "C"
 	void a3demo_validateUnload(const a3_DemoState *demoState);
 
 	void a3demo_refresh(a3_DemoState *demoState);
+	void a3demo_input(a3_DemoState *demoState, double dt);
 	void a3demo_update(a3_DemoState *demoState, double dt);
-	void a3demo_render(a3_DemoState *demoState);
+	void a3demo_render(const a3_DemoState *demoState);
 
 
 //-----------------------------------------------------------------------------

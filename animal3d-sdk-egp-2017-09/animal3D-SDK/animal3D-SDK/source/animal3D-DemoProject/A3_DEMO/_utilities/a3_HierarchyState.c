@@ -1,78 +1,632 @@
 /*
-Copyright 2011-2017 Daniel S. Buckstein
+	Copyright 2011-2017 Daniel S. Buckstein
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+		http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
 */
 
 /*
-animal3D SDK: Minimal 3D Animation Framework
-By Daniel S. Buckstein
-
-a3_HierarchyState.c
-Implementation of transform hierarchy state.
+	animal3D SDK: Minimal 3D Animation Framework
+	By Daniel S. Buckstein
+	
+	a3_HierarchyState.c
+	Implementation of transform hierarchy state.
 */
 
 #include "a3_HierarchyState.h"
+
 #include "a3_Quaternion.h"
+
 #include <stdlib.h>
 
 
 //-----------------------------------------------------------------------------
+// quaternion component flag
+#define a3poseFlag_quat	0x2
 
-// initialize hierarchy state given an initialized hierarchy
-extern inline int a3hierarchyStateCreate(a3_HierarchyState *state_out, const a3_Hierarchy *hierarchy)
+
+//-----------------------------------------------------------------------------
+// internal blending operations
+
+// reset pose
+inline void a3hierarchyNodePoseReset_internal(a3_HierarchyNodePose *nodePose)
 {
-	// validate params and initialization states
-	//	(output is not yet initialized, hierarchy is initialized)
-	if (state_out && hierarchy && !state_out->hierarchy && hierarchy->nodes)
+	// set defaults for all channels
+	nodePose->orientation = p3wVec4;
+	nodePose->translation = p3zeroVec4;
+	nodePose->scale = p3oneVec4;
+}
+
+inline void a3hierarchyPoseReset_internal(const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	// iterate through list and reset each one
+	a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseReset_internal(nodePose++);
+}
+
+
+// copy pose
+inline void a3hierarchyNodePoseCopy_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *copyNodePose)
+{
+	*nodePose_out = *copyNodePose;
+}
+
+inline void a3hierarchyPoseCopy_internal(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *copyPose, const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *copyNodePose = copyPose->nodePose;
+	while (nodePose_out < end)
+		a3hierarchyNodePoseCopy_internal(nodePose_out++, copyNodePose++);
+}
+
+
+// invert pose
+inline void a3hierarchyNodePoseInvert_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *invertNodePose)
+{
+	// rotation: quaternion conjugate covers either quaternions or Euler angles
+	a3quatConjugate(nodePose_out->orientation.v, invertNodePose->orientation.v);
+	
+	// not quite the same idea for translation but functional
+	a3quatConjugate(nodePose_out->translation.v, invertNodePose->translation.v);
+
+	// scale, invert components
+	nodePose_out->scale.x = recip(invertNodePose->scale.x);
+	nodePose_out->scale.y = recip(invertNodePose->scale.y);
+	nodePose_out->scale.z = recip(invertNodePose->scale.z);
+	nodePose_out->scale.w = recip(invertNodePose->scale.w);
+}
+
+inline void a3hierarchyPoseInvert_internal(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *invertPose, const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *invertNodePose = invertPose->nodePose;
+	while (nodePose_out < end)
+		a3hierarchyNodePoseInvert_internal(nodePose_out++, invertNodePose++);
+}
+
+
+// ****TO-DO: implement internal node operations
+
+// lerp components
+inline void a3hierarchyNodePoseLerp_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float param)
+{
+	p3real4Lerp(nodePose_out->orientation.v, nodePose0->orientation.v, nodePose1->orientation.v, param);
+
+	p3real4Lerp(nodePose_out->translation.v, nodePose0->translation.v, nodePose1->translation.v, param);
+
+	p3real4Lerp(nodePose_out->scale.v, nodePose0->scale.v, nodePose1->scale.v, param);
+}
+
+inline void a3hierarchyNodePoseLerp_quat_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float param)
+{
+	a3quatUnitSLERP(nodePose_out->orientation.v, nodePose0->orientation.v, nodePose1->orientation.v, param);
+
+	p3real4Lerp(nodePose_out->translation.v, nodePose0->translation.v, nodePose1->translation.v, param);
+
+	p3real4Lerp(nodePose_out->scale.v, nodePose0->scale.v, nodePose1->scale.v, param);
+}
+
+// concatenation (ADD)
+inline void a3hierarchyNodePoseConcat_internal(a3_HierarchyNodePose *nodePose_out, 
+	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1)
+{
+	// rotation add
+	p3real4Sum(nodePose_out->orientation.v, nodePose0->orientation.v, nodePose1->orientation.v);
+
+	// translate add
+	p3real4Sum(nodePose_out->translation.v, nodePose0->translation.v, nodePose1->translation.v);
+	
+	// scale multiply
+	nodePose_out->scale.x = nodePose0->scale.x * nodePose1->scale.x;
+	nodePose_out->scale.y = nodePose0->scale.y * nodePose1->scale.y;
+	nodePose_out->scale.z = nodePose0->scale.z * nodePose1->scale.z;
+	nodePose_out->scale.w = nodePose0->scale.w * nodePose1->scale.w;
+}
+
+inline void a3hierarchyNodePoseConcat_quat_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1)
+{
+	// rotation quat concat
+	a3quatConcat(nodePose_out->orientation.v, nodePose0->orientation.v, nodePose1->orientation.v);
+
+	//translate add
+	p3real4Sum(nodePose_out->translation.v, nodePose0->translation.v, nodePose1->translation.v);
+
+	//scale multiply
+	nodePose_out->scale.x = nodePose0->scale.x * nodePose1->scale.x;
+	nodePose_out->scale.y = nodePose0->scale.y * nodePose1->scale.y;
+	nodePose_out->scale.z = nodePose0->scale.z * nodePose1->scale.z;
+	nodePose_out->scale.w = nodePose0->scale.w * nodePose1->scale.w;
+}
+
+// scale: Lerp from identity
+inline void a3hierarchyNodePoseScale_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose, const float param)
+{
+	// rotation: scalar multiply
+	p3real4ProductS(nodePose_out->orientation.v, nodePose->orientation.v, param);
+
+	// translate: scalar multiply
+	p3real4ProductS(nodePose_out->translation.v, nodePose->translation.v, param);
+
+	// scale: lerp from 1 vector
+	p3real4Lerp(nodePose_out->scale.v, p3oneVec4.v, nodePose->scale.v, param);
+}
+
+inline void a3hierarchyNodePoseScale_quat_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose, const float param)
+{
+	// rotation: scalar multiply
+	a3quatUnitSLERP(nodePose_out->orientation.v, p3wVec4.v, nodePose->orientation.v, param);
+
+	// translate: scalar multiply
+	p3real4ProductS(nodePose_out->translation.v, nodePose->translation.v, param);
+
+	// scale: lerp from 1 vector
+	p3real4Lerp(nodePose_out->scale.v, p3oneVec4.v, nodePose->scale.v, param);
+}
+
+
+// lerp components
+inline void a3hierarchyPoseLerp_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param, 
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+	while (nodePose_out < end)
 	{
-		const unsigned int count = hierarchy->numNodes;
-		const unsigned int count2 = count + count;
+		a3hierarchyNodePoseLerp_internal(nodePose_out++, nodePose0++, nodePose1++, param);
+	}
+}
+
+inline void a3hierarchyPoseLerp_quat_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseLerp_quat_internal(nodePose_out++, nodePose0++, nodePose1++, param);
+	}
+}
+
+// concatenation (ADD)
+inline void a3hierarchyPoseConcat_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseConcat_internal(nodePose_out++, nodePose0++, nodePose1++);
+	}
+}
+
+inline void a3hierarchyPoseConcat_quat_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseConcat_quat_internal(nodePose_out++, nodePose0++, nodePose1++);
+	}
+}
+
+// scale: Lerp from identity
+inline void a3hierarchyPoseScale_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose, const float param,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseScale_internal(nodePose_out++, nodePose0++, param);
+	}
+}
+
+inline void a3hierarchyPoseScale_quat_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose, const float param,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseScale_quat_internal(nodePose_out++, nodePose0++, param);
+	}
+}
+
+// blend: weighted average between two poses
+inline void a3hierarchyNodePoseBlend_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1,
+	const float param0, const float param1)
+{
+	// first  "tree" example
+	// - scale poses by weights
+	// - add results
+	a3_HierarchyNodePose tmpPose0[1], tmpPose1[1];
+	a3hierarchyNodePoseScale_internal(tmpPose0, nodePose0, param0);
+	a3hierarchyNodePoseScale_internal(tmpPose1, nodePose1, param1);
+	a3hierarchyNodePoseConcat_internal(nodePose_out, tmpPose0, tmpPose1);
+}
+
+inline void a3hierarchyNodePoseBlend_quat_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1,
+	const float param0, const float param1)
+{
+	// first  "tree" example
+	// - scale poses by weights
+	// - add results
+	a3_HierarchyNodePose tmpPose0[1], tmpPose1[1];
+	a3hierarchyNodePoseScale_quat_internal(tmpPose0, nodePose0, param0);
+	a3hierarchyNodePoseScale_quat_internal(tmpPose1, nodePose1, param1);
+	a3hierarchyNodePoseConcat_quat_internal(nodePose_out, tmpPose0, tmpPose1);
+}
+
+inline void a3hierarchyNodePoseTriLerp_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyNodePose *nodePose2,
+	const float param0, const float param1, const float param2)
+{
+	// second "tree" example
+	a3_HierarchyNodePose tmpPose0[1], tmpPose1[1];
+
+	a3hierarchyNodePoseBlend_internal(tmpPose0, nodePose0, nodePose1, param0, param1);
+	a3hierarchyNodePoseScale_internal(tmpPose1, nodePose2, param2);
+	a3hierarchyNodePoseConcat_internal(nodePose_out, tmpPose0, tmpPose1);
+}
+
+inline void a3hierarchyNodePoseTriLerp_quat_internal(a3_HierarchyNodePose *nodePose_out,
+	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyNodePose *nodePose2,
+	const float param0, const float param1, const float param2)
+{
+	// second "tree" example
+	a3_HierarchyNodePose tmpPose0[1], tmpPose1[1];
+
+	a3hierarchyNodePoseBlend_quat_internal(tmpPose0, nodePose0, nodePose1, param0, param1);
+	a3hierarchyNodePoseScale_quat_internal(tmpPose1, nodePose2, param2);
+	a3hierarchyNodePoseConcat_quat_internal(nodePose_out, tmpPose0, tmpPose1);
+}
+
+
+// scale: Lerp from identity
+inline void a3hierarchyPoseBlend_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1,
+	const float param0, const float param1,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseBlend_internal(nodePose_out++, nodePose0++, nodePose1++, param0, param1);
+	}
+}
+
+// scale: Lerp from identity
+inline void a3hierarchyPoseBlend_quat_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1,
+	const float param0, const float param1,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseBlend_quat_internal(nodePose_out++, nodePose0++, nodePose1++, param0, param1);
+	}
+}
+
+
+inline void a3hierarchyPoseTriLerp_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const a3_HierarchyPose *pose2,
+	const float param0, const float param1, const float param2,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose, *nodePose2 = pose2->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseTriLerp_internal(nodePose_out++, nodePose0++, nodePose1++, nodePose2++, param0, param1, param2);
+	}
+}
+
+inline void a3hierarchyPoseTriLerp_quat_internal(a3_HierarchyPose *pose_out,
+	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const a3_HierarchyPose *pose2,
+	const float param0, const float param1, const float param2,
+	const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose, *nodePose2 = pose2->nodePose;
+	while (nodePose_out < end)
+	{
+		a3hierarchyNodePoseTriLerp_quat_internal(nodePose_out++, nodePose0++, nodePose1++, nodePose2++, param0, param1, param2);
+	}
+}
+
+// convert pose to transformation matrix
+// different versions for efficiency when calling per-set functions
+//	(significantly reduces the number of comparisons)
+// all of the combos (wouldn't it be great if we had 'flags'): 
+//	-> none
+//	-> quaternion
+//	-> quaternion, scale,
+//	-> quaternion, scale, translate
+//	-> quaternion, translate
+//	-> euler
+//	-> euler, scale,
+//	-> euler, scale, translate
+//	-> euler, translate
+//	-> scale
+//	-> scale, translate
+//	-> translate
+inline void a3hierarchyNodePoseConvert_identity_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 1. output identity
+	p3real4x4SetIdentity(mat_out->m);
+}
+
+inline void a3hierarchyNodePoseConvert_quaternion_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 2. convert quaternion to matrix
+	a3quatConvertToMat4(mat_out->m, nodePose->orientation.v, p3zeroVec3.v);
+}
+
+inline void a3hierarchyNodePoseConvert_quaternion_scale_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 3. convert quaternion to matrix
+	a3quatConvertToMat4(mat_out->m, nodePose->orientation.v, p3zeroVec3.v);
+
+	// adjust scale
+	p3real3MulS(mat_out->v0.v, nodePose->scale.x);
+	p3real3MulS(mat_out->v1.v, nodePose->scale.y);
+	p3real3MulS(mat_out->v2.v, nodePose->scale.z);
+}
+
+inline void a3hierarchyNodePoseConvert_quaternion_scale_translate_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 4. convert quaternion to matrix, with translation
+	a3quatConvertToMat4(mat_out->m, nodePose->orientation.v, nodePose->translation.v);
+
+	// adjust scale
+	p3real3MulS(mat_out->v0.v, nodePose->scale.x);
+	p3real3MulS(mat_out->v1.v, nodePose->scale.y);
+	p3real3MulS(mat_out->v2.v, nodePose->scale.z);
+}
+
+inline void a3hierarchyNodePoseConvert_quaternion_translate_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 5. convert quaternion to matrix, with translation
+	a3quatConvertToMat4(mat_out->m, nodePose->orientation.v, nodePose->translation.v);
+}
+
+inline void a3hierarchyNodePoseConvert_euler_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 6. convert euler to matrix (assume ZYX, very common)
+	p3real4x4SetRotateZYX(mat_out->m, nodePose->orientation.x, nodePose->orientation.y, nodePose->orientation.z);
+}
+
+inline void a3hierarchyNodePoseConvert_euler_scale_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 7. convert euler to matrix
+	p3real4x4SetRotateZYX(mat_out->m, nodePose->orientation.x, nodePose->orientation.y, nodePose->orientation.z);
+
+	// adjust scale
+	p3real3MulS(mat_out->v0.v, nodePose->scale.x);
+	p3real3MulS(mat_out->v1.v, nodePose->scale.y);
+	p3real3MulS(mat_out->v2.v, nodePose->scale.z);
+}
+
+inline void a3hierarchyNodePoseConvert_euler_scale_translate_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 8. convert euler to matrix, with translation
+	p3real4x4SetRotateZYX(mat_out->m, nodePose->orientation.x, nodePose->orientation.y, nodePose->orientation.z);
+	mat_out->v3.xyz = nodePose->translation.xyz;
+
+	// adjust scale
+	p3real3MulS(mat_out->v0.v, nodePose->scale.x);
+	p3real3MulS(mat_out->v1.v, nodePose->scale.y);
+	p3real3MulS(mat_out->v2.v, nodePose->scale.z);
+}
+
+inline void a3hierarchyNodePoseConvert_euler_translate_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 9. convert euler to matrix, with translation
+	p3real4x4SetRotateZYX(mat_out->m, nodePose->orientation.x, nodePose->orientation.y, nodePose->orientation.z);
+	mat_out->v3.xyz = nodePose->translation.xyz;
+}
+
+inline void a3hierarchyNodePoseConvert_scale_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 10. scale
+	p3real4x4SetIdentity(mat_out->m);
+	mat_out->m00 = nodePose->scale.x;
+	mat_out->m11 = nodePose->scale.y;
+	mat_out->m22 = nodePose->scale.z;
+}
+
+inline void a3hierarchyNodePoseConvert_scale_translate_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 11. scale with translation
+	p3real4x4SetIdentity(mat_out->m);
+	mat_out->m00 = nodePose->scale.x;
+	mat_out->m11 = nodePose->scale.y;
+	mat_out->m22 = nodePose->scale.z;
+	mat_out->v3.xyz = nodePose->translation.xyz;
+}
+
+inline void a3hierarchyNodePoseConvert_translate_internal(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose)
+{
+	// 12. translation
+	p3real4x4SetIdentity(mat_out->m);
+	mat_out->v3.xyz = nodePose->translation.xyz;
+}
+
+
+// same as the above with loops
+inline void a3hierarchyPoseConvert_identity_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_identity_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_quaternion_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_quaternion_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_quaternion_scale_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_quaternion_scale_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_quaternion_scale_translate_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_quaternion_scale_translate_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_quaternion_translate_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_quaternion_translate_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_euler_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_euler_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_euler_scale_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_euler_scale_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_euler_scale_translate_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_euler_scale_translate_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_euler_translate_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_euler_translate_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_scale_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_scale_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_scale_translate_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_scale_translate_internal(mat_out++, nodePose++);
+}
+
+inline void a3hierarchyPoseConvert_translate_internal(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount)
+{
+	p3mat4 *mat_out = transform_out->transform;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose, *const end = nodePose + nodeCount;
+	while (nodePose < end)
+		a3hierarchyNodePoseConvert_translate_internal(mat_out++, nodePose++);
+}
+
+
+//-----------------------------------------------------------------------------
+
+// initialize pose set given an initialized hierarchy and key pose count
+extern inline int a3hierarchyPoseGroupCreate(a3_HierarchyPoseGroup *poseGroup_out, const a3_Hierarchy *hierarchy, const unsigned int poseCount)
+{
+	if (poseGroup_out && hierarchy && !poseGroup_out->hierarchy && hierarchy->nodes)
+	{
+		// allocate contiguous list of size: nodes * poses
+		const unsigned int nodeCount = hierarchy->numNodes;
+		const unsigned int totalPoses = nodeCount * poseCount;
 		unsigned int i;
 
-		// set hierarchy pointer
-		state_out->hierarchy = hierarchy;
+		// pointer to pose list for current node
+		a3_HierarchyNodePose *nodePosePtr;
+		a3_HierarchyPose *posePtr;
 
-		// allocate set of matrices in state
-		//	('local' points to contiguous array of all matrices and floats)
-		state_out->localSpaceTransforms = (p3mat4 *)malloc(count2 * sizeof(p3mat4) + count * sizeof(float) + count * sizeof(a3_HierarchyNodePose));
-		state_out->objectSpaceTransforms = (state_out->localSpaceTransforms + count);
-		state_out->localPoseList = (a3_HierarchyNodePose*)(state_out->objectSpaceTransforms + count);
+		// set hierarchy and count
+		poseGroup_out->hierarchy = hierarchy;
+		poseGroup_out->poseCount = poseCount;
 
-		// set all matrices to identity
-		for (i = 0; i < count2; ++i)
-			p3real4x4SetIdentity(state_out->localSpaceTransforms[i].m);
+		// allocate contiguous data and pointers
+		poseGroup_out->nodePoseContiguous = (a3_HierarchyNodePose *)malloc(totalPoses * sizeof(a3_HierarchyNodePose) + poseCount * sizeof(a3_HierarchyPose *));
+		poseGroup_out->pose = (a3_HierarchyPose *)(poseGroup_out->nodePoseContiguous + totalPoses);
 
-		// return number of nodes
-		return count;
+		// set all pointers and reset all poses
+		for (i = 0, nodePosePtr = poseGroup_out->nodePoseContiguous, posePtr = poseGroup_out->pose; 
+			i < poseCount; 
+			++i, nodePosePtr += nodeCount, ++posePtr)
+		{
+			posePtr->nodePose = nodePosePtr;
+			a3hierarchyPoseReset_internal(posePtr, nodeCount);
+		}
+
+		// return pose count
+		return poseCount;
 	}
 	return -1;
 }
 
-// release hierarchy state
-extern inline int a3hierarchyStateRelease(a3_HierarchyState *state)
+// release pose set
+extern inline int a3hierarchyPoseGroupRelease(a3_HierarchyPoseGroup *poseGroup)
 {
-	// validate param exists and is initialized
-	if (state && state->hierarchy)
+	if (poseGroup && poseGroup->hierarchy)
 	{
-		// release matrices
-		//	(local points to contiguous array of all matrices)
-		free(state->localSpaceTransforms);
-
-		// reset pointers
-		state->hierarchy = 0;
-		state->localSpaceTransforms = 0;
-		state->objectSpaceTransforms = 0;
+		free(poseGroup->nodePoseContiguous);
+		poseGroup->hierarchy = 0;
+		poseGroup->nodePoseContiguous = 0;
+		poseGroup->pose = 0;
+		poseGroup->poseCount = 0;
 
 		// done
 		return 1;
@@ -80,340 +634,440 @@ extern inline int a3hierarchyStateRelease(a3_HierarchyState *state)
 	return -1;
 }
 
+// get offset to hierarchy pose in contiguous set
+extern inline int a3hierarchyPoseGroupGetPoseOffsetIndex(const a3_HierarchyPoseGroup *poseGroup, const unsigned int poseIndex)
+{
+	if (poseGroup && poseGroup->hierarchy)
+		return (poseIndex * poseGroup->hierarchy->numNodes);
+	return -1;
+}
+
+// get offset to single node pose in contiguous set
+extern inline int a3hierarchyPoseGroupGetNodePoseOffsetIndex(const a3_HierarchyPoseGroup *poseGroup, const unsigned int poseIndex, const unsigned int nodeIndex)
+{
+	if (poseGroup && poseGroup->hierarchy)
+		return (poseIndex * poseGroup->hierarchy->numNodes + nodeIndex);
+	return -1;
+}
+
+
 //-----------------------------------------------------------------------------
-extern inline int a3hierarchyPoseSetCreate(a3_HierarchyPoseSet * poseSet_out, const a3_Hierarchy *hierarchy, const unsigned int keyPoseCount)
+
+// initialize hierarchy state given an initialized hierarchy
+extern inline int a3hierarchyStateCreate(a3_HierarchyState *state_out, const a3_HierarchyPoseGroup *poseGroup)
 {
-	// validtate
-	if (poseSet_out && !poseSet_out->hierarchy && hierarchy && hierarchy->nodes && keyPoseCount > 0)
+	// validate params and initialization states
+	//	(output is not yet initialized, hierarchy is initialized)
+	if (state_out && poseGroup && !state_out->poseGroup && poseGroup->hierarchy && poseGroup->hierarchy->nodes)
 	{
-		const unsigned int nodeCount = hierarchy->numNodes;
-		const unsigned int totalPoses = nodeCount * (keyPoseCount + 1);
+		const a3_Hierarchy *hierarchy = poseGroup->hierarchy;
 
+		const unsigned int count = hierarchy->numNodes;
+		const unsigned int count2 = count + count;
 		unsigned int i;
-		a3_HierarchyNodePose *posePtr;
 
-		poseSet_out->hierarchy = hierarchy;
-		poseSet_out->keyPoseCount = keyPoseCount;
+		// set pose set pointer
+		state_out->poseGroup = poseGroup;
 
-		// SALT ALLOCATION
-		poseSet_out->poseListContiguous = (a3_HierarchyNodePose*)malloc(totalPoses * sizeof(a3_HierarchyNodePose) + nodeCount * sizeof(a3_HierarchyNodePose*));
-		poseSet_out->poseList = (a3_HierarchyNodePose**)(poseSet_out->poseListContiguous + totalPoses);
+		// allocate set of matrices in state
+		//	('local' points to contiguous array of all matrices and floats)
+		state_out->localPose->nodePose = (a3_HierarchyNodePose *)malloc(count2 * sizeof(p3mat4) + count * sizeof(a3_HierarchyNodePose));
+		state_out->localSpace->transform = (p3mat4 *)(state_out->localPose->nodePose + count);
+		state_out->objectSpace->transform = (p3mat4 *)(state_out->localSpace->transform + count);
 
-		// resety the poses
-		for (i = 0; i < totalPoses; ++i)
-			a3hierarchyNodePoseReset(poseSet_out->poseListContiguous + i);
+		// set all matrices to identity
+		for (i = 0; i < count2; ++i)
+			p3real4x4SetIdentity(state_out->localSpace->transform[i].m);
 
-		// set key node pointers
-		for (i = 0, posePtr = poseSet_out->poseListContiguous; i < nodeCount; ++i, posePtr += keyPoseCount + 1)
-		{
-			poseSet_out->poseList[i] = posePtr;
-		}
+		// set all poses to default values
+		a3hierarchyPoseReset_internal(state_out->localPose, hierarchy->numNodes);
 
-
-		return keyPoseCount;
+		// return number of nodes
+		return count;
 	}
 	return -1;
 }
 
-extern inline int a3hierarchyPoseSetRelease(a3_HierarchyPoseSet * poseSet)
-{
-	if (poseSet && poseSet->hierarchy)
-	{
-		free(poseSet->poseListContiguous);
-		poseSet->hierarchy = 0;
-		poseSet->poseList = 0;
-		poseSet->poseListContiguous = 0;
-		poseSet->keyPoseCount = 0;
 
+// release hierarchy state
+extern inline int a3hierarchyStateRelease(a3_HierarchyState *state)
+{
+	// validate param exists and is initialized
+	if (state && state->poseGroup)
+	{
+		// release matrices
+		//	(local points to contiguous array of all matrices)
+		free(state->localPose->nodePose);
+
+		// reset pointers
+		state->localPose->nodePose = 0;
+		state->localSpace->transform = 0;
+		state->objectSpace->transform = 0;
+
+		// done
 		return 1;
 	}
 	return -1;
 }
 
 
-// reset to 'identity'
-extern inline int a3hierarchyNodePoseReset(a3_HierarchyNodePose *pose)
+//-----------------------------------------------------------------------------
+// ****TO-DO: implement single-node blend operations
+// ****TO-DO: implement full-pose blend operations
+
+// reset single node pose
+extern inline int a3hierarchyNodePoseReset(a3_HierarchyNodePose *nodePose_inout)
 {
-	if (pose)
+	if (nodePose_inout)
 	{
-		pose->orientation = p3wVec4;
-		pose->translation = p3zeroVec3;
-		pose->scale = p3oneVec3;
-	}
-
-	return -1;
-}
-
-
-
-
-
-
-
-
-// consider making scale and translation vec4s as additional metadata storage
-extern inline int a3hierarchyNodePoseSet(a3_HierarchyNodePose * pose, const p3vec4 orientation, const p3vec3 translation, const p3vec3 scale)
-{
-	if (pose)
-	{
-		pose->orientation = orientation;
-		pose->translation = translation;
-		pose->scale = scale;
-
-		// anything else
-
+		a3hierarchyNodePoseReset_internal(nodePose_inout);
 		return 1;
 	}
-
 	return -1;
 }
 
-extern inline int a3hierarchyPoseSetInitNodePose(const a3_HierarchyPoseSet * poseSet, const a3_HierarchyNodePose * pose, const unsigned int nodeIndex, const unsigned int keyPoseIndex)
+// copy single node pose
+extern inline int a3hierarchyNodePoseCopy(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *copyNodePose)
 {
-	if (poseSet && pose && poseSet->hierarchy && nodeIndex < poseSet->hierarchy->numNodes && (int)keyPoseIndex <= (int)poseSet->keyPoseCount)
+	if (nodePose_out && copyNodePose)
 	{
-		// select pose
-		const unsigned int poseIndex = (int)keyPoseIndex >= 0 ? keyPoseIndex : poseSet->keyPoseCount;
-
-		poseSet->poseList[nodeIndex][poseIndex] = *pose;
-		return poseIndex;
-	}
-
-	return -1;
-}
-
-extern inline int a3hierarchyNodePoseCopyNodePose(a3_HierarchyNodePose * pose_out, const a3_HierarchyPoseSet * poseSet, const unsigned int nodeIndex, const unsigned int keyPoseIndex)
-{
-	if (poseSet && pose_out && poseSet->hierarchy && nodeIndex < poseSet->hierarchy->numNodes && (int)keyPoseIndex <= (int)poseSet->keyPoseCount)
-	{
-		// select pose
-		const unsigned int poseIndex = (int)keyPoseIndex >= 0 ? keyPoseIndex : poseSet->keyPoseCount;
-
-		*pose_out = poseSet->poseList[nodeIndex][poseIndex];
-		return poseIndex;
-	}
-
-
-
-	return -1;
-}
-
-
-
-
-
-
-
-
-
-// copy a keypose to the current state
-extern inline int a3hierarchyStateCopyKeyPose(const a3_HierarchyState *state, const a3_HierarchyPoseSet *poseSet, const unsigned int keyPoseIndex)
-{
-	if (state && poseSet && state->hierarchy && poseSet->hierarchy && (int)keyPoseIndex <= poseSet->keyPoseCount)
-	{
-		const unsigned int poseIndex = (int)keyPoseIndex >= 0 ? keyPoseIndex : poseSet->keyPoseCount;
-		unsigned int i;
-		// if not base pose, copy deltas
-		if (poseIndex != poseSet->keyPoseCount)
-		{
-
-			for (i = 0; i < state->hierarchy->numNodes; ++i)
-			{
-				state->localPoseList[i] = poseSet->poseList[i][keyPoseIndex];
-			}
-		}
-		else // reset local pose index in our state
-		{
-			for (i = 0; i < state->hierarchy->numNodes; ++i)
-				a3hierarchyNodePoseReset(state->localPoseList + i);
-		}
-
-
-
-
-		return keyPoseIndex;
-	}
-
-	return -1;
-}
-
-extern inline int a3hierarchyStateCalcInBetweenPoses(const a3_HierarchyState * state, const a3_HierarchyPoseSet * poseSet, unsigned int keyPoseIndex0, unsigned int keyPoseIndex1, const float t, const int usingQuaternions)
-{
-	if (state && poseSet && state->hierarchy && poseSet->hierarchy && (int)keyPoseIndex0 <= poseSet->keyPoseCount && (int)keyPoseIndex1 <= poseSet->keyPoseCount)
-	{
-		const unsigned int poseIndex0 = (int)keyPoseIndex0 >= 0 ? keyPoseIndex0 : poseSet->keyPoseCount;
-		const unsigned int poseIndex1 = (int)keyPoseIndex1 >= 0 ? keyPoseIndex1 : poseSet->keyPoseCount;
-		unsigned int i;
-
-		// interpolate between the poses
-		// slerp rotations
-		// lerp positions
-		const a3_HierarchyNodePose *nodePtr0, *nodePtr1;
-		a3_HierarchyNodePose *resultPosePtr;
-
-		// 4 ways to do this shit
-		// if either is a base pose, we have a special case
-		// neither are base
-		// one or other is base x2
-		// both are base
-		if (poseIndex0 != poseSet->keyPoseCount && poseIndex1 != poseSet->keyPoseCount)
-		{
-			// interpolate between both
-			if (usingQuaternions)
-			{
-				for (i = 0; i < state->hierarchy->numNodes; ++i)
-				{
-					resultPosePtr = state->localPoseList + i;
-					nodePtr0 = poseSet->poseList[i] + poseIndex0;
-					nodePtr1 = poseSet->poseList[i] + poseIndex1;
-
-					a3quatUnitSLERP(resultPosePtr->orientation.v, nodePtr0->orientation.v, nodePtr1->orientation.v, t);
-					p3real3Lerp(resultPosePtr->translation.v, nodePtr0->translation.v, nodePtr1->translation.v, t);
-					p3real3Lerp(resultPosePtr->scale.v, nodePtr0->scale.v, nodePtr1->scale.v, t);
-				}
-			}
-			else
-			{
-				for (i = 0; i < state->hierarchy->numNodes; ++i)
-				{
-					resultPosePtr = state->localPoseList + i;
-					nodePtr0 = poseSet->poseList[i] + poseIndex0;
-					nodePtr1 = poseSet->poseList[i] + poseIndex1;
-
-					p3real3Lerp(resultPosePtr->orientation.v, nodePtr0->orientation.v, nodePtr1->orientation.v, t);
-					p3real3Lerp(resultPosePtr->translation.v, nodePtr0->translation.v, nodePtr1->translation.v, t);
-					p3real3Lerp(resultPosePtr->scale.v, nodePtr0->scale.v, nodePtr1->scale.v, t);
-				}
-			}
-		}
-		else if (poseIndex0 == poseSet->keyPoseCount)// && poseIndex1 != poseSet->keyPoseCount)
-		{
-			if (usingQuaternions)
-			{
-				for (i = 0; i < state->hierarchy->numNodes; ++i)
-				{
-					resultPosePtr = state->localPoseList + i;
-					nodePtr1 = poseSet->poseList[i] + poseIndex1;
-
-					a3quatUnitSLERP(resultPosePtr->orientation.v, p3wVec4.v, nodePtr1->orientation.v, t);
-					p3real3Lerp(resultPosePtr->translation.v, p3zeroVec3.v, nodePtr1->translation.v, t);
-					p3real3Lerp(resultPosePtr->scale.v, p3oneVec3.v, nodePtr1->scale.v, t);
-				}
-			}
-			else
-			{
-				for (i = 0; i < state->hierarchy->numNodes; ++i)
-				{
-					resultPosePtr = state->localPoseList + i;
-					nodePtr1 = poseSet->poseList[i] + poseIndex1;
-
-					p3real3Lerp(resultPosePtr->orientation.v, p3wVec4.v, nodePtr1->orientation.v, t);
-					p3real3Lerp(resultPosePtr->translation.v, p3zeroVec3.v, nodePtr1->translation.v, t);
-					p3real3Lerp(resultPosePtr->scale.v, p3oneVec3.v, nodePtr1->scale.v, t);
-				}
-			}
-		}
-		else if (/*poseIndex0 != poseSet->keyPoseCount && */poseIndex1 == poseSet->keyPoseCount)
-		{
-			if (usingQuaternions)
-			{
-				for (i = 0; i < state->hierarchy->numNodes; ++i)
-				{
-					resultPosePtr = state->localPoseList + i;
-					nodePtr0 = poseSet->poseList[i] + poseIndex1;
-
-					a3quatUnitSLERP(resultPosePtr->orientation.v, nodePtr1->orientation.v, p3wVec4.v, t);
-					p3real3Lerp(resultPosePtr->translation.v, nodePtr1->translation.v, p3zeroVec3.v, t);
-					p3real3Lerp(resultPosePtr->scale.v, nodePtr1->scale.v, p3oneVec3.v, t);
-				}
-			}
-			else
-			{
-				for (i = 0; i < state->hierarchy->numNodes; ++i)
-				{
-					resultPosePtr = state->localPoseList + i;
-					nodePtr1 = poseSet->poseList[i] + poseIndex1;
-
-					p3real3Lerp(resultPosePtr->orientation.v, nodePtr1->orientation.v, p3wVec4.v, t);
-					p3real3Lerp(resultPosePtr->translation.v, nodePtr1->translation.v, p3zeroVec3.v, t);
-					p3real3Lerp(resultPosePtr->scale.v, nodePtr1->scale.v, p3oneVec3.v, t);
-				}
-			}
-		}
-		else// if (poseIndex0 == poseSet->keyPoseCount && poseIndex1 == poseSet->keyPoseCount)
-		{
-			// just set it
-			for (i = 0; i < state->hierarchy->numNodes; ++i)
-				a3hierarchyNodePoseReset(state->localPoseList + i);
-		}
-
-	}
-
-	return -1;
-}
-
-extern inline int a3hierarchyStateConvertPose(const a3_HierarchyState *state, const a3_HierarchyPoseSet * poseSet, const unsigned int usingQuaternions)
-{
-	if (state && state->hierarchy)
-	{
-		// given pose, set local transforms, use to set object transforms
-
-		unsigned int i;
-		a3_HierarchyNodePose finalPose, basePose;
-		const a3_HierarchyNodePose *posePtr;
-		p3mat4 *localMatPtr;
-
-		// convert per node
-		for (i = 0; i < state->hierarchy->numNodes; ++i)
-		{
-			basePose = poseSet->poseList[i][poseSet->keyPoseCount];
-			posePtr = state->localPoseList + i;
-			localMatPtr = state->localSpaceTransforms + i;
-
-			// combine current with base
-			// rot : quat concat or euler angle addition
-			// trans: vector add
-			// scale: scalar mult
-
-			if (usingQuaternions)
-			{
-				a3quatConcat(finalPose.orientation.v, basePose.orientation.v, posePtr->orientation.v);
-			}
-			else
-			{
-				p3real3Sum(finalPose.orientation.v, basePose.orientation.v, posePtr->orientation.v);
-			}
-
-			// translate
-			p3real3Sum(finalPose.translation.v, basePose.translation.v, posePtr->translation.v);
-
-			// scale
-			finalPose.scale.x = basePose.scale.x * posePtr->scale.x;
-			finalPose.scale.y = basePose.scale.x * posePtr->scale.y;
-			finalPose.scale.z = basePose.scale.x * posePtr->scale.z;
-
-
-
-			// CONVERSE BOIS <conversion>
-			if (usingQuaternions)
-			{
-				a3quatConvertToMat4(localMatPtr->m, finalPose.orientation.v, finalPose.translation.v);
-			}
-			else
-			{
-				p3real4x4SetRotateZYX(localMatPtr->m, finalPose.orientation.x, finalPose.orientation.y, finalPose.orientation.z);
-				localMatPtr->v3.xyz = finalPose.translation;
-			}
-
-
-			// scale
-			p3real3MulS(localMatPtr->v0.v, finalPose.scale.x);
-			p3real3MulS(localMatPtr->v1.v, finalPose.scale.y);
-			p3real3MulS(localMatPtr->v2.v, finalPose.scale.z);
-		}
-
+		a3hierarchyNodePoseCopy_internal(nodePose_out, copyNodePose);
 		return 1;
 	}
-
 	return -1;
 }
+
+// invert single node pose
+extern inline int a3hierarchyNodePoseInvert(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *invertNodePose)
+{
+	if (nodePose_out && invertNodePose)
+	{
+		a3hierarchyNodePoseInvert_internal(nodePose_out, invertNodePose);
+		return 1;
+	}
+	return -1;
+}
+
+// LERP single node pose
+extern inline int a3hierarchyNodePoseLERP(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float param, const a3_HierarchyPoseFlag flag)
+{
+	if (nodePose_out && nodePose0 && nodePose1)
+	{
+		if (flag & a3poseFlag_quat)
+			a3hierarchyNodePoseLerp_quat_internal(nodePose_out, nodePose0, nodePose1, param);
+		else
+			a3hierarchyNodePoseLerp_internal(nodePose_out, nodePose0, nodePose1, param);
+		return 1;
+	}
+	return -1;
+}
+
+// add/concat single node pose
+extern inline int a3hierarchyNodePoseConcat(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyPoseFlag flag)
+{
+	if (nodePose_out && nodePose0 && nodePose1)
+	{
+		if (flag & a3poseFlag_quat)
+			a3hierarchyNodePoseConcat_quat_internal(nodePose_out, nodePose0, nodePose1);
+		else
+			a3hierarchyNodePoseConcat_internal(nodePose_out, nodePose0, nodePose1);
+		return 1;
+	}
+	return -1;
+}
+
+// scale single node pose
+extern inline int a3hierarchyNodePoseScale(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePoseScale, const float param, const a3_HierarchyPoseFlag flag)
+{
+	if (nodePose_out && nodePoseScale)
+	{
+		if (flag & a3poseFlag_quat)
+			a3hierarchyNodePoseScale_quat_internal(nodePose_out, nodePoseScale, param);
+		else
+			a3hierarchyNodePoseScale_internal(nodePose_out, nodePoseScale, param);
+		return 1;
+	}
+	return -1;
+}
+
+// blend single node pose
+extern inline int a3hierarchyNodePoseBlend(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float weight0, const float weight1, const a3_HierarchyPoseFlag flag)
+{
+	if (nodePose_out && nodePose0 && nodePose1)
+	{
+		if (flag & a3poseFlag_quat)
+			a3hierarchyNodePoseBlend_quat_internal(nodePose_out, nodePose0, nodePose1, weight0, weight1);
+		else
+			a3hierarchyNodePoseBlend_internal(nodePose_out, nodePose0, nodePose1, weight0, weight1);
+		return 1;
+	}
+	return -1;
+}
+
+// triangular LERP single node pose
+extern inline int a3hierarchyNodePoseTriangularLERP(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyNodePose *nodePose2, const float param0, const float param1, const a3_HierarchyPoseFlag flag)
+{
+	if (nodePose_out && nodePose0 && nodePose1 && nodePose2)
+	{
+		const float param2 = 1.0f - param0 - param1;
+
+		if (flag & a3poseFlag_quat)
+			a3hierarchyNodePoseTriLerp_quat_internal(nodePose_out, nodePose0, nodePose1, nodePose2, param0, param1, param2);
+		else
+			a3hierarchyNodePoseTriLerp_internal(nodePose_out, nodePose0, nodePose1, nodePose2, param0, param1, param2);
+		return 1;
+	}
+	return -1;
+}
+
+// convert single node pose to matrix
+extern inline int a3hierarchyNodePoseConvert(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose, const a3_HierarchyPoseFlag flag)
+{
+	// switch looks ugly but will potentially save a ton of processing time
+	// NOTE: sort cases by LIKELIHOOD to save even more time
+	//	probably start with revolute (rotating) transforms
+	if (mat_out && nodePose)
+	{
+		switch (flag)
+		{
+			// pure cases
+		case (a3poseFlag_rotate_q):
+			// pure revolute
+			a3hierarchyNodePoseConvert_quaternion_internal(mat_out, nodePose);
+			break;
+		case (a3poseFlag_rotate):
+			// pure revolute Euler
+			a3hierarchyNodePoseConvert_euler_internal(mat_out, nodePose);
+			break;
+		case (a3poseFlag_translate):
+			// pure prismatic
+			a3hierarchyNodePoseConvert_translate_internal(mat_out, nodePose);
+			break;
+		case (a3poseFlag_scale):
+			// non-rigid
+			a3hierarchyNodePoseConvert_scale_internal(mat_out, nodePose);
+			break;
+
+			// combo cases
+		case (a3poseFlag_rotate_q | a3poseFlag_translate):
+			// revolute, prismatic
+			a3hierarchyNodePoseConvert_quaternion_translate_internal(mat_out, nodePose);
+			break;
+		case (a3poseFlag_rotate | a3poseFlag_translate):
+			// revolute Euler, prismatic
+			a3hierarchyNodePoseConvert_euler_translate_internal(mat_out, nodePose);
+			break;
+		case (a3poseFlag_rotate_q | a3poseFlag_scale):
+			// revolute, non-rigid
+			a3hierarchyNodePoseConvert_quaternion_scale_internal(mat_out, nodePose);
+			break;
+		case (a3poseFlag_rotate | a3poseFlag_scale):
+			// revolute Euler, non-rigid
+			a3hierarchyNodePoseConvert_euler_scale_internal(mat_out, nodePose);
+			break;
+		case (a3poseFlag_translate | a3poseFlag_scale):
+			// prismatic, non-rigid
+			a3hierarchyNodePoseConvert_scale_translate_internal(mat_out, nodePose);
+			break;
+
+			// complete cases
+		case (a3poseFlag_rotate_q | a3poseFlag_translate | a3poseFlag_scale):
+			// revolute, prismatic, non-rigid
+			a3hierarchyNodePoseConvert_quaternion_scale_translate_internal(mat_out, nodePose);
+			break;
+		case (a3poseFlag_rotate | a3poseFlag_translate | a3poseFlag_scale):
+			// revolute Euler, prismatic, non-rigid
+			a3hierarchyNodePoseConvert_euler_scale_translate_internal(mat_out, nodePose);
+			break;
+
+			// no transform case
+		default: 
+			// none
+			a3hierarchyNodePoseConvert_identity_internal(mat_out, nodePose);
+			break;
+		}
+
+		// end
+		return 1;
+	}
+	return -1;
+}
+
+
+// reset full hierarchy pose
+extern inline int a3hierarchyPoseReset(const a3_HierarchyPose *pose_inout, const unsigned int nodeCount)
+{
+	if (pose_inout && pose_inout->nodePose)
+	{
+		a3hierarchyPoseReset_internal(pose_inout, nodeCount);
+		return nodeCount;
+	}
+	return -1;
+}
+
+// copy full hierarchy pose
+extern inline int a3hierarchyPoseCopy(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *copyPose, const unsigned int nodeCount)
+{
+	if (pose_out && copyPose && pose_out->nodePose && copyPose->nodePose)
+	{
+		a3hierarchyPoseCopy_internal(pose_out, copyPose, nodeCount);
+		return nodeCount;
+	}
+	return -1;
+}
+
+// invert full hierarchy pose
+extern inline int a3hierarchyPoseInvert(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *invertPose, const unsigned int nodeCount)
+{
+	if (pose_out && invertPose && pose_out->nodePose && invertPose->nodePose)
+	{
+		a3hierarchyPoseInvert_internal(pose_out, invertPose, nodeCount);
+		return nodeCount;
+	}
+	return -1;
+}
+
+// LERP full hierarchy pose
+extern inline int a3hierarchyPoseLERP(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag)
+{
+	if (pose_out && pose0 && pose1 && pose_out->nodePose && pose0->nodePose && pose1->nodePose)
+	{
+		if (flag & a3poseFlag_quat)
+			a3hierarchyPoseLerp_quat_internal(pose_out, pose0, pose1, param, nodeCount);
+		else
+			a3hierarchyPoseLerp_internal(pose_out, pose0, pose1, param, nodeCount);
+		return nodeCount;
+	}
+	return -1;
+}
+
+// add/concat full hierarchy pose
+extern inline int a3hierarchyPoseConcat(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag)
+{
+	if (pose_out && pose0 && pose1 && pose_out->nodePose && pose0->nodePose && pose1->nodePose)
+	{
+		if (flag & a3poseFlag_quat)
+			a3hierarchyPoseConcat_quat_internal(pose_out, pose0, pose1, nodeCount);
+		else
+			a3hierarchyPoseConcat_internal(pose_out, pose0, pose1, nodeCount);
+		return nodeCount;
+	}
+	return -1;
+}
+
+// scale full hierarchy pose
+extern inline int a3hierarchyPoseScale(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *poseScale, const float param, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag)
+{
+	if (pose_out && poseScale && pose_out->nodePose && poseScale->nodePose)
+	{
+		if (flag & a3poseFlag_quat)
+			a3hierarchyPoseScale_quat_internal(pose_out, poseScale, param, nodeCount);
+		else
+			a3hierarchyPoseScale_internal(pose_out, poseScale, param, nodeCount);
+		return nodeCount;
+	}
+	return -1;
+}
+
+// blend full hierarchy pose
+extern inline int a3hierarchyPoseBlend(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float weight0, const float weight1, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag)
+{
+	if (pose_out && pose0 && pose1 && pose_out->nodePose && pose0->nodePose && pose1->nodePose)
+	{
+		if (flag & a3poseFlag_quat)
+			a3hierarchyPoseBlend_quat_internal(pose_out, pose0, pose1, weight0, weight1, nodeCount);
+		else
+			a3hierarchyPoseBlend_internal(pose_out, pose0, pose1, weight0, weight1, nodeCount);
+		return nodeCount;
+	}
+	return -1;
+}
+
+// triangular LERP full hierarchy pose
+extern inline int a3hierarchyPoseTriangularLERP(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const a3_HierarchyPose *pose2, const float param0, const float param1, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag)
+{
+	if (pose_out && pose0 && pose1 && pose2 && pose_out->nodePose && pose0->nodePose && pose1->nodePose && pose2->nodePose)
+	{
+		const float param2 = 1.0f - param0 - param1;
+
+		if (flag & a3poseFlag_quat)
+			a3hierarchyPoseTriLerp_quat_internal(pose_out, pose0, pose1, pose2, param0, param1, param2, nodeCount);
+		else
+			a3hierarchyPoseTriLerp_internal(pose_out, pose0, pose1, pose2, param0, param1, param2, nodeCount);
+		return nodeCount;
+	}
+	return -1;
+}
+
+// convert full hierarchy pose to hierarchy transforms
+extern inline int a3hierarchyPoseConvert(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag)
+{
+	if (transform_out && pose && transform_out->transform && pose->nodePose)
+	{
+		switch (flag)
+		{
+			// pure cases
+		case (a3poseFlag_rotate_q):
+			// pure revolute
+			a3hierarchyPoseConvert_quaternion_internal(transform_out, pose, nodeCount);
+			break;
+		case (a3poseFlag_rotate):
+			// pure revolute Euler
+			a3hierarchyPoseConvert_euler_internal(transform_out, pose, nodeCount);
+			break;
+		case (a3poseFlag_translate):
+			// pure prismatic
+			a3hierarchyPoseConvert_translate_internal(transform_out, pose, nodeCount);
+			break;
+		case (a3poseFlag_scale):
+			// non-rigid
+			a3hierarchyPoseConvert_scale_internal(transform_out, pose, nodeCount);
+			break;
+
+			// combo cases
+		case (a3poseFlag_rotate_q | a3poseFlag_translate):
+			// revolute, prismatic
+			a3hierarchyPoseConvert_quaternion_translate_internal(transform_out, pose, nodeCount);
+			break;
+		case (a3poseFlag_rotate | a3poseFlag_translate):
+			// revolute Euler, prismatic
+			a3hierarchyPoseConvert_euler_translate_internal(transform_out, pose, nodeCount);
+			break;
+		case (a3poseFlag_rotate_q | a3poseFlag_scale):
+			// revolute, non-rigid
+			a3hierarchyPoseConvert_quaternion_scale_internal(transform_out, pose, nodeCount);
+			break;
+		case (a3poseFlag_rotate | a3poseFlag_scale):
+			// revolute Euler, non-rigid
+			a3hierarchyPoseConvert_euler_scale_internal(transform_out, pose, nodeCount);
+			break;
+		case (a3poseFlag_translate | a3poseFlag_scale):
+			// prismatic, non-rigid
+			a3hierarchyPoseConvert_scale_translate_internal(transform_out, pose, nodeCount);
+			break;
+
+			// complete cases
+		case (a3poseFlag_rotate_q | a3poseFlag_translate | a3poseFlag_scale):
+			// revolute, prismatic, non-rigid
+			a3hierarchyPoseConvert_quaternion_scale_translate_internal(transform_out, pose, nodeCount);
+			break;
+		case (a3poseFlag_rotate | a3poseFlag_translate | a3poseFlag_scale):
+			// revolute Euler, prismatic, non-rigid
+			a3hierarchyPoseConvert_euler_scale_translate_internal(transform_out, pose, nodeCount);
+			break;
+
+			// no transform case
+		default:
+			// none
+			a3hierarchyPoseConvert_identity_internal(transform_out, pose, nodeCount);
+			break;
+		}
+
+		// end
+		return nodeCount;
+	}
+	return -1;
+}
+
+
+//-----------------------------------------------------------------------------

@@ -1,25 +1,25 @@
 /*
-Copyright 2011-2017 Daniel S. Buckstein
+	Copyright 2011-2017 Daniel S. Buckstein
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+	Licensed under the Apache License, Version 2.0 (the "License");
+	you may not use this file except in compliance with the License.
+	You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+		http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+	Unless required by applicable law or agreed to in writing, software
+	distributed under the License is distributed on an "AS IS" BASIS,
+	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	See the License for the specific language governing permissions and
+	limitations under the License.
+*/
 
 /*
-animal3D SDK: Minimal 3D Animation Framework
-By Daniel S. Buckstein
-
-a3_HierarchyState.h
-Hierarchy transformation state.
+	animal3D SDK: Minimal 3D Animation Framework
+	By Daniel S. Buckstein
+	
+	a3_HierarchyState.h
+	Hierarchy transformation state.
 */
 
 #ifndef __ANIMAL3D_HIERARCHYSTATE_H
@@ -39,117 +39,184 @@ Hierarchy transformation state.
 extern "C"
 {
 #else	// !__cplusplus
-typedef struct a3_HierarchyNodePose	a3_HierarchyNodePose;
-typedef struct a3_HierarchyPoseSet	a3_HierarchyPoseSet;
-typedef struct a3_HierarchyState	a3_HierarchyState;
+	typedef struct a3_HierarchyNodePose		a3_HierarchyNodePose;
+	typedef struct a3_HierarchyPose			a3_HierarchyPose;
+	typedef struct a3_HierarchyTransform	a3_HierarchyTransform;
+	typedef struct a3_HierarchyPoseGroup	a3_HierarchyPoseGroup;
+	typedef struct a3_HierarchyState		a3_HierarchyState;
+	typedef enum a3_HierarchyPoseFlag		a3_HierarchyPoseFlag;
 #endif	// __cplusplus
 
+	
+//-----------------------------------------------------------------------------
+
+	// single pose for a single node
+	struct a3_HierarchyNodePose
+	{
+		// 4D vector to hold up to 4 values (quat) or 3 Euler angles
+		// default value is identity quaternion (0, 0, 0, 1), which 
+		//	also works for default Euler angles (0, 0, 0)
+		p3vec4 orientation;
+
+		// 3D vector for translation
+		// default value is zero vector (0, 0, 0)
+		// can use w to store bone length (distance from parent)
+		p3vec4 translation;
+
+		// 3D vector for scale (uniform means all values are the same)
+		// scale is not typically used, but it's here in case it's useful
+		// default is unit scale (1, 1, 1)
+		// can use w to store uniform flag
+		p3vec4 scale;
+	};
+
+
+	// single pose for a collection of nodes
+	// makes algorithms easier to keep this as a separate data type
+	struct a3_HierarchyPose
+	{
+		a3_HierarchyNodePose *nodePose;
+	};
+
+
+	// collection of matrices for transformation set
+	struct a3_HierarchyTransform
+	{
+		p3mat4 *transform;
+	};
+
+
+	// pose group
+	struct a3_HierarchyPoseGroup
+	{
+		// pointer to hierarchy
+		const a3_Hierarchy *hierarchy;
+
+		// contiguous array of all node poses (for efficiency)
+		a3_HierarchyNodePose *nodePoseContiguous;
+
+		// list of poses for full hierarchy
+		a3_HierarchyPose *pose;
+
+		// number of hierarchy poses in set
+		unsigned int poseCount;
+	};
+
+
+	// hierarchy state structure, with a pointer to the source pose group 
+	//	and transformations for kinematics
+	struct a3_HierarchyState
+	{
+		// pointer to pose set that the poses come from
+		const a3_HierarchyPoseGroup *poseGroup;
+
+		// local poses
+		a3_HierarchyPose localPose[1];
+
+		// local transformations (relative to parent's space)
+		a3_HierarchyTransform localSpace[1];
+
+		// object transformations (relative to root's parent's space)
+		a3_HierarchyTransform objectSpace[1];
+	};
+	
 
 //-----------------------------------------------------------------------------
 
-// pose for a single node (key pose)
-// the actual "sample" data for a single node at a time
-struct a3_HierarchyNodePose
-{
-	// all the stuff you need for your mat4
-	// rotation
-	// quaternion or euler angles
-	p3vec4 orientation;
+	// flags to describe transformation components in use
+	enum a3_HierarchyPoseFlag
+	{
+		a3poseFlag_identity,		// not using transform components
+		a3poseFlag_rotate,			// using Euler angles for rotation
+		a3poseFlag_rotate_q = 0x3,	// using quaternion for rotation
+		a3poseFlag_scale,			// using scale
+		a3poseFlag_translate = 0x8,	// using translation
+	};
+	
 
-	// translation
-	p3vec3 translation;
+//-----------------------------------------------------------------------------
 
-	// scale
-	// uniform or non uniform
-	p3vec3 scale;
-};
+	// initialize pose set given an initialized hierarchy and key pose count
+	inline int a3hierarchyPoseGroupCreate(a3_HierarchyPoseGroup *poseGroup_out, const a3_Hierarchy *hierarchy, const unsigned int poseCount);
 
-// container for all the poses for all nodes in a hierarchy
-struct a3_HierarchyPoseSet
-{
-	const a3_Hierarchy *hierarchy;
+	// release pose set
+	inline int a3hierarchyPoseGroupRelease(a3_HierarchyPoseGroup *poseGroup);
 
-	// all poses for all nodes
-	// ***********BE CONSOISTENT WITH ACCESSING ELEMENTS
-	// eg list[nodeindex][poseindex]
-	a3_HierarchyNodePose **poseList;
+	// get offset to hierarchy pose in contiguous set
+	inline int a3hierarchyPoseGroupGetPoseOffsetIndex(const a3_HierarchyPoseGroup *poseGroup, const unsigned int poseIndex);
 
-	a3_HierarchyNodePose *poseListContiguous;
-
-	// number of keys
-	unsigned int keyPoseCount;
-};
-
-
-
-
-
-// hierarchy state structure, with a pointer to a hierarchy (decoupled) 
-//	and transformations for kinematics
-struct a3_HierarchyState
-{
-	// pointer to hierarchy tree
-	const a3_Hierarchy *hierarchy;
-
-	// local transformations (relative to parent's space)
-	p3mat4 *localSpaceTransforms;
-
-	// object transformations (relative to root's parent's space)
-	p3mat4 *objectSpaceTransforms;
-
-
-	// have a list of your node poses
-	// one per joint
-
-	// joints define the local state
-	a3_HierarchyNodePose *localPoseList;
-};
+	// get offset to single node pose in contiguous set
+	inline int a3hierarchyPoseGroupGetNodePoseOffsetIndex(const a3_HierarchyPoseGroup *poseGroup, const unsigned int poseIndex, const unsigned int nodeIndex);
 
 
 //-----------------------------------------------------------------------------
 
-// initialize hierarchy state given an initialized hierarchy
-inline int a3hierarchyStateCreate(a3_HierarchyState *state_out, const a3_Hierarchy *hierarchy);
+	// initialize hierarchy state given an initialized hierarchy
+	inline int a3hierarchyStateCreate(a3_HierarchyState *state_out, const a3_HierarchyPoseGroup *poseGroup);
 
-// release hierarchy state
-inline int a3hierarchyStateRelease(a3_HierarchyState *state);
+	// release hierarchy state
+	inline int a3hierarchyStateRelease(a3_HierarchyState *state);
 
 
 //-----------------------------------------------------------------------------
 
+	// reset single node pose
+	inline int a3hierarchyNodePoseReset(a3_HierarchyNodePose *nodePose_inout);
 
-// NEW DLC DROPPING
-// [salt] allocate pose set (resource data)
-inline int a3hierarchyPoseSetCreate(a3_HierarchyPoseSet * poseSet_out, const a3_Hierarchy *hierarchy, const unsigned int keyPoseCount);
+	// copy single node pose
+	inline int a3hierarchyNodePoseCopy(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *copyNodePose);
 
-// [salsa] release
-inline int a3hierarchyPoseSetRelease(a3_HierarchyPoseSet * poseSet);
+	// invert single node pose
+	inline int a3hierarchyNodePoseInvert(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *invertNodePose);
 
-// set default pose
-inline int a3hierarchyNodePoseReset(a3_HierarchyNodePose *pose);
+	// LERP single node pose
+	inline int a3hierarchyNodePoseLERP(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float param, const a3_HierarchyPoseFlag flag);
 
-// set pose
-inline int a3hierarchyNodePoseSet(a3_HierarchyNodePose *pose, const p3vec4 orientation, const p3vec3 translation, const p3vec3 scale);
+	// add/concat single node pose
+	inline int a3hierarchyNodePoseConcat(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyPoseFlag flag);
 
-// store a single node pose in a set, -1 is base pose
-inline int a3hierarchyPoseSetInitNodePose(const a3_HierarchyPoseSet *poseSet, const a3_HierarchyNodePose *pose, const unsigned int nodeIndex, const unsigned int keyPoseIndex);
+	// scale single node pose
+	inline int a3hierarchyNodePoseScale(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePoseScale, const float param, const a3_HierarchyPoseFlag flag);
 
-// copy single node pose from the set, if negative, base pose
-inline int a3hierarchyNodePoseCopyNodePose(a3_HierarchyNodePose *pose_out, const a3_HierarchyPoseSet *poseSet, const unsigned int nodeIndex, const unsigned int keyPoseIndex);
+	// blend single node pose
+	inline int a3hierarchyNodePoseBlend(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float weight0, const float weight1, const a3_HierarchyPoseFlag flag);
+
+	// triangular LERP single node pose
+	inline int a3hierarchyNodePoseTriangularLERP(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyNodePose *nodePose2, const float param0, const float param1, const a3_HierarchyPoseFlag flag);
+
+	// convert single node pose to matrix
+	inline int a3hierarchyNodePoseConvert(p3mat4 *mat_out, const a3_HierarchyNodePose *nodePose, const a3_HierarchyPoseFlag flag);
 
 
-// copy key pose from set to state
-inline int a3hierarchyStateCopyKeyPose(const a3_HierarchyState *state, const a3_HierarchyPoseSet *poseSet, const unsigned int keyPoseIndex);
+	// reset full hierarchy pose
+	inline int a3hierarchyPoseReset(const a3_HierarchyPose *pose_inout, const unsigned int nodeCount);
 
-// calc in between pose between key poses
-inline int a3hierarchyStateCalcInBetweenPoses(const a3_HierarchyState *state, const a3_HierarchyPoseSet *poseSet, unsigned int keyPoseIndex0, unsigned int keyPoseIndex1, const float t, const int usingQuaternions);
+	// copy full hierarchy pose
+	inline int a3hierarchyPoseCopy(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *copyPose, const unsigned int nodeCount);
 
-// convert the current state pose to transforms
-inline int a3hierarchyStateConvertPose(const a3_HierarchyState *state, const a3_HierarchyPoseSet * poseSet, const unsigned int usingQuaternions);
+	// invert full hierarchy pose
+	inline int a3hierarchyPoseInvert(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *invertPose, const unsigned int nodeCount);
+
+	// LERP full hierarchy pose
+	inline int a3hierarchyPoseLERP(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag);
+
+	// add/concat full hierarchy pose
+	inline int a3hierarchyPoseConcat(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag);
+
+	// scale full hierarchy pose
+	inline int a3hierarchyPoseScale(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *poseScale, const float param, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag);
+
+	// blend full hierarchy pose
+	inline int a3hierarchyPoseBlend(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float weight0, const float weight1, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag);
+
+	// triangular LERP full hierarchy pose
+	inline int a3hierarchyPoseTriangularLERP(const a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const a3_HierarchyPose *pose2, const float param0, const float param1, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag);
+
+	// convert full hierarchy pose to hierarchy transforms
+	inline int a3hierarchyPoseConvert(const a3_HierarchyTransform *transform_out, const a3_HierarchyPose *pose, const unsigned int nodeCount, const a3_HierarchyPoseFlag flag);
+
 
 //-----------------------------------------------------------------------------
-
-
 
 
 #ifdef __cplusplus

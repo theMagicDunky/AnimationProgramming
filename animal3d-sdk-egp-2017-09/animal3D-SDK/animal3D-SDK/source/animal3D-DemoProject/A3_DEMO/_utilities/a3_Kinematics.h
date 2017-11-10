@@ -45,7 +45,10 @@ extern "C"
 	inline int a3kinematicsSolveForward(const a3_HierarchyState *hierarchyState);
 
 	// forward kinematics solver starting at a specified joint
-	inline int a3kinematicsSolveForwardPartial(const a3_HierarchyState *hierarchyState, const unsigned int firstIndex);
+	inline int a3kinematicsSolveForwardPartial(const a3_HierarchyState *hierarchyState, const unsigned int firstIndex, const unsigned int nodeCount);
+
+
+//-----------------------------------------------------------------------------
 
 
 //-----------------------------------------------------------------------------

@@ -232,6 +232,7 @@ A3API int a3test_idle(a3_DemoState *demoState)
 		if (a3timerUpdate(demoState->renderTimer) > 0)
 		{
 			// render timer ticked, update demo state and draw
+			a3demo_input(demoState, demoState->renderTimer->secondsPerTick);
 			a3demo_update(demoState, demoState->renderTimer->secondsPerTick);
 			a3demo_render(demoState);
 
@@ -355,19 +356,6 @@ A3API void a3test_keyCharPress(a3_DemoState *demoState, int asciiKey)
 	case 'P': 
 		a3demo_unloadShaders(demoState);
 		a3demo_loadShaders(demoState);
-		break;
-
-
-		// change mode
-	case '.':
-		demoState->kinematicsMode = (demoState->kinematicsMode + 1) % 3;
-		break;
-	case ',':
-		demoState->kinematicsMode = (demoState->kinematicsMode + 2) % 3;
-		break;
-
-	case 'x':
-		demoState->displayBoneAxes = 1 - demoState->displayBoneAxes;
 		break;
 	}
 }
