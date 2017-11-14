@@ -44,6 +44,7 @@
 #include "_utilities/a3_Quaternion.h"
 #include "_utilities/a3_HierarchyState.h"
 #include "_utilities/a3_Kinematics.h"
+#include "_utilities/a3_ClipControl.h"
 
 
 //-----------------------------------------------------------------------------
@@ -157,12 +158,6 @@ extern "C"
 		int animationMode, animationModeCount;
 		int displayBoneAxes, displayBoneNames;
 
-		// whole object poses (could be a resource)
-		a3_HierarchyNodePose objectPoses[2];
-
-		// whole object pose blend result (not a resource)
-		a3_HierarchyNodePose objectPoseState_blend[1];
-
 		// skeleton hierarchy (resource)
 		a3_Hierarchy skeleton[1];
 
@@ -175,12 +170,14 @@ extern "C"
 		// hierarchy states for different modes (not a resource)
 		a3_HierarchyState skeletonState_blend[1];
 
-		// blend control parameter
-		float blendAlpha, targetBlendAlpha, targetBlendAlphaSmoothing;
+		// clip group to divide up the poses
+		a3_ClipGroup skeletonClips[1];
 
-		// pose-to-pose controller
-		unsigned int currentKeyPoseIndex, nextKeyPoseIndex;
-		float poseTime, poseDuration;
+		// pose-to-pose controllers: one per layer
+		a3_ClipController ctrlIdle[1], ctrlWalk[1], ctrlWobble[1], ctrlCrouch[1];
+
+		// interpolation control
+		float blendBeta, targetBlendBeta, targetBlendBetaSmoothing;
 
 
 		//---------------------------------------------------------------------

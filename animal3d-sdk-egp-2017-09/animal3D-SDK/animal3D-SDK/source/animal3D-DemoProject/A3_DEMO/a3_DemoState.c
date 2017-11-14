@@ -681,7 +681,12 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 	// kinematics setup
 
 	// initialize poses
-	a3hierarchyPoseGroupCreate(demoState->skeletonPoses, demoState->skeleton, 3);
+	//	- base (1)
+	//	- idle (4)
+	//	- walk (4)
+	//	- wobble (2)
+	//	- crouch (1)
+	a3hierarchyPoseGroupCreate(demoState->skeletonPoses, demoState->skeleton, 12);
 
 	{
 		p3vec3 skeletonBaseOffsets[64];
@@ -723,67 +728,200 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 
 	// ****TO-DO: 
 	// create and set key poses
-	
-	// whole object poses
-	a3hierarchyNodePoseReset(demoState->objectPoses + 0);
-	p3real3Set(demoState->objectPoses[0].orientation.v, 45.0f, -45.0f, 45.0f);
-	p3real3Set(demoState->objectPoses[0].scale.v, 4.0f, 4.0f, 4.0f);
-	p3real3Set(demoState->objectPoses[0].translation.v, -10.0f, 0.0f, 0.0f);
-
-	a3hierarchyNodePoseReset(demoState->objectPoses + 1);
-	p3real3Set(demoState->objectPoses[1].orientation.v, -30.0f, 180.0f, 30.0f);
-	p3real3Set(demoState->objectPoses[1].scale.v, 0.5f, 0.5f, 0.5f);
-	p3real3Set(demoState->objectPoses[1].translation.v, 4.0f, 2.0f, 0.0f);
-
 
 	// hierarchy poses
-	// pose 0: bow (or dab, probably, whatever)
+	// poses 1 - 4: idle
 	tmpPosePtr = demoState->skeletonPoses->pose + 1;
 	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_spine");
-	tmpPosePtr->nodePose[i].orientation.x = -45.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
-	tmpPosePtr->nodePose[i].orientation.z = -90.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_elbow_l");
-	tmpPosePtr->nodePose[i].orientation.z = -90.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_r");
-	tmpPosePtr->nodePose[i].orientation.x = -45.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_r");
-	tmpPosePtr->nodePose[i].orientation.x = -45.0f;
-
-	// pose 1: jump
-	tmpPosePtr = demoState->skeletonPoses->pose + 2;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_root");
-	tmpPosePtr->nodePose[i].orientation.x = -15.0f;
-	tmpPosePtr->nodePose[i].translation.z = 2.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_spine");
-	tmpPosePtr->nodePose[i].orientation.x = 30.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
-	tmpPosePtr->nodePose[i].orientation.y = 30.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_elbow_l");
-	tmpPosePtr->nodePose[i].orientation.y = 30.0f;
+	tmpPosePtr->nodePose[i].orientation.z = 10.0f;
 	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
-	tmpPosePtr->nodePose[i].orientation.y = -30.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_elbow_r");
-	tmpPosePtr->nodePose[i].orientation.y = -30.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_l");
-	tmpPosePtr->nodePose[i].orientation.y = 30.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_r");
-	tmpPosePtr->nodePose[i].orientation.y = -30.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_l");
-	tmpPosePtr->nodePose[i].orientation.x = -30.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_r");
-	tmpPosePtr->nodePose[i].orientation.x = -30.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_l");
-	tmpPosePtr->nodePose[i].orientation.z = 45.0f;
-	tmpPosePtr->nodePose[i].orientation.x = -45.0f;
-	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_r");
-	tmpPosePtr->nodePose[i].orientation.z = -45.0f;
-	tmpPosePtr->nodePose[i].orientation.x = -45.0f;
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = 80.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.x = -10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = -80.0f;
 
+	tmpPosePtr = demoState->skeletonPoses->pose + 2;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
+	tmpPosePtr->nodePose[i].orientation.y = 80.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.y = -80.0f;
+
+	tmpPosePtr = demoState->skeletonPoses->pose + 3;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_spine");
+	tmpPosePtr->nodePose[i].orientation.z = -10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
+	tmpPosePtr->nodePose[i].orientation.x = -10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = 80.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = -80.0f;
+
+	tmpPosePtr = demoState->skeletonPoses->pose + 4;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
+	tmpPosePtr->nodePose[i].orientation.y = 80.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.y = -80.0f;
+
+	// poses 5 - 8: simple walk
+	//	5: left leg & right arm forward, right leg & left arm back
+	//	6: left leg & arms centered, right leg transition
+	//	7: right leg & right arm forward, left leg & left arm back
+	//	8: right leg & arms centered, left leg transition
+	tmpPosePtr = demoState->skeletonPoses->pose + 5;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_root");
+	tmpPosePtr->nodePose[i].translation.y = 1.0f;
+	tmpPosePtr->nodePose[i].translation.z = -0.5f;
+	tmpPosePtr->nodePose[i].orientation.z = -10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_spine");
+	tmpPosePtr->nodePose[i].orientation.z = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_neck");
+	tmpPosePtr->nodePose[i].orientation.z = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = 50.0f;
+	tmpPosePtr->nodePose[i].orientation.z = 60.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_elbow_r");
+	tmpPosePtr->nodePose[i].orientation.z = 30.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.x = -10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = -50.0f;
+	tmpPosePtr->nodePose[i].orientation.z = 60.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_elbow_l");
+	tmpPosePtr->nodePose[i].orientation.z = -10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_l");
+	tmpPosePtr->nodePose[i].orientation.x = 30.0f;
+	tmpPosePtr->nodePose[i].orientation.z = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_l");
+	tmpPosePtr->nodePose[i].orientation.x = -40.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_l");
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_r");
+	tmpPosePtr->nodePose[i].orientation.x = -30.0f;
+	tmpPosePtr->nodePose[i].orientation.z = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_r");
+	tmpPosePtr->nodePose[i].orientation.x = -35.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_r");
+	tmpPosePtr->nodePose[i].orientation.x = -20.0f;
+
+	tmpPosePtr = demoState->skeletonPoses->pose + 6;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = 70.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.x = -10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = -70.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_r");
+	tmpPosePtr->nodePose[i].orientation.x = 60.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_r");
+	tmpPosePtr->nodePose[i].orientation.x = -120.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_r");
+	tmpPosePtr->nodePose[i].orientation.x = -60.0f;
+
+	tmpPosePtr = demoState->skeletonPoses->pose + 7;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_root");
+	tmpPosePtr->nodePose[i].translation.y = 1.0f;
+	tmpPosePtr->nodePose[i].translation.z = -0.5f;
+	tmpPosePtr->nodePose[i].orientation.z = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_spine");
+	tmpPosePtr->nodePose[i].orientation.z = -10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_neck");
+	tmpPosePtr->nodePose[i].orientation.z = -10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.x = -10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = -50.0f;
+	tmpPosePtr->nodePose[i].orientation.z = -60.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = 50.0f;
+	tmpPosePtr->nodePose[i].orientation.z = -60.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_r");
+	tmpPosePtr->nodePose[i].orientation.x = 30.0f;
+	tmpPosePtr->nodePose[i].orientation.z = -10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_r");
+	tmpPosePtr->nodePose[i].orientation.x = -40.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_r");
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_l");
+	tmpPosePtr->nodePose[i].orientation.x = -30.0f;
+	tmpPosePtr->nodePose[i].orientation.z = -10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_l");
+	tmpPosePtr->nodePose[i].orientation.x = -35.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_l");
+	tmpPosePtr->nodePose[i].orientation.x = -20.0f;
+
+	tmpPosePtr = demoState->skeletonPoses->pose + 8;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = 70.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.x = -10.0f;
+	tmpPosePtr->nodePose[i].orientation.y = -70.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_l");
+	tmpPosePtr->nodePose[i].orientation.x = 60.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_l");
+	tmpPosePtr->nodePose[i].orientation.x = -120.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_l");
+	tmpPosePtr->nodePose[i].orientation.x = -60.0f;
+
+	// poses 9 - 10: wobble
+	tmpPosePtr = demoState->skeletonPoses->pose + 9;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_spine");
+	tmpPosePtr->nodePose[i].orientation.y = -1.0f;
+	tmpPosePtr = demoState->skeletonPoses->pose + 10;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_spine");
+	tmpPosePtr->nodePose[i].orientation.y = 1.0f;
+	
+	// pose 11 - crouch
+	//	(body lowered and rotated, knees bent, arms raised and elbows bent a bit)
+	tmpPosePtr = demoState->skeletonPoses->pose + 11;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_root");
+	tmpPosePtr->nodePose[i].translation.z = -2.0f;
+	tmpPosePtr->nodePose[i].orientation.z = -45.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_spine");
+	tmpPosePtr->nodePose[i].orientation.x = -30.0f;
+	tmpPosePtr->nodePose[i].orientation.z = 15.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_neck");
+	tmpPosePtr->nodePose[i].orientation.x = 30.0f;
+	tmpPosePtr->nodePose[i].orientation.z = 15.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_l");
+	tmpPosePtr->nodePose[i].orientation.x = 80.0f;
+	tmpPosePtr->nodePose[i].orientation.z = 45.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_l");
+	tmpPosePtr->nodePose[i].orientation.x = -90.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_l");
+	tmpPosePtr->nodePose[i].orientation.x = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_hip_r");
+	tmpPosePtr->nodePose[i].orientation.x = 50.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_knee_r");
+	tmpPosePtr->nodePose[i].orientation.x = -120.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_ankle_r");
+	tmpPosePtr->nodePose[i].orientation.x = 45.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_r");
+	tmpPosePtr->nodePose[i].orientation.y = -10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_shoulder_l");
+	tmpPosePtr->nodePose[i].orientation.y = 10.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_elbow_r");
+	tmpPosePtr->nodePose[i].orientation.z = 30.0f;
+	i = a3hierarchyGetNodeIndex(demoState->skeleton, "skel_elbow_l");
+	tmpPosePtr->nodePose[i].orientation.z = -30.0f;
+
+
+	// setup clips
+	a3clipCreateGroup(demoState->skeletonClips, 4);
+	a3clipInit(demoState->skeletonClips, 0, "skel_idle", 1, 4, 10.0f);
+	a3clipInit(demoState->skeletonClips, 1, "skel_walk", 5, 8, 1.0f);
+	a3clipInit(demoState->skeletonClips, 2, "skel_wobble", 9, 10, 0.25f);
+	a3clipInit(demoState->skeletonClips, 3, "skel_crouch", 11, 11, 0.0f);
+
+	a3clipCtrlSet(demoState->ctrlIdle, demoState->skeletonClips, 0);
+	a3clipCtrlSet(demoState->ctrlWalk, demoState->skeletonClips, 1);
+	a3clipCtrlSet(demoState->ctrlWobble, demoState->skeletonClips, 2);
+	a3clipCtrlSet(demoState->ctrlCrouch, demoState->skeletonClips, 3);
 
 
 	// set up blend poses (container for blend outputs)
-	a3hierarchyPoseGroupCreate(demoState->skeletonPoses_blend, demoState->skeleton, 1);
+	a3hierarchyPoseGroupCreate(demoState->skeletonPoses_blend, demoState->skeleton, 8);
 
 	// initialize hierarchy states
 	a3hierarchyStateCreate(demoState->skeletonState_blend, demoState->skeletonPoses);
@@ -800,8 +938,8 @@ void a3demo_loadAnimation(a3_DemoState *demoState)
 
 
 	// other settings
-	demoState->animationModeCount = 6;
-	demoState->targetBlendAlphaSmoothing = 0.75f;
+	demoState->animationModeCount = 8;
+	demoState->targetBlendBetaSmoothing = 0.5f;
 }
 
 // unload animation
@@ -813,6 +951,8 @@ void a3demo_unloadAnimation(a3_DemoState *demoState)
 
 	a3hierarchyPoseGroupRelease(demoState->skeletonPoses_blend);
 	a3hierarchyStateRelease(demoState->skeletonState_blend);
+
+	a3clipReleaseGroup(demoState->skeletonClips);
 }
 
 
@@ -1000,9 +1140,9 @@ void a3demo_input(a3_DemoState *demoState, double dt)
 
 		// update interpolation parameter
 		if (a3XboxControlGetState(demoState->xcontrol, a3xbox_DPAD_left) > 0)
-			demoState->targetBlendAlpha -= (float)dt;
+			demoState->targetBlendBeta -= (float)dt;
 		if (a3XboxControlGetState(demoState->xcontrol, a3xbox_DPAD_right) > 0)
-			demoState->targetBlendAlpha += (float)dt;
+			demoState->targetBlendBeta += (float)dt;
 
 		// change modes and toggles
 		if (a3XboxControlIsChanged(demoState->xcontrol, a3xbox_start) > 0)
@@ -1043,9 +1183,9 @@ void a3demo_input(a3_DemoState *demoState, double dt)
 
 		// update interpolation parameter
 		if (a3keyboardGetState(demoState->keyboard, a3key_leftArrow) > 0)
-			demoState->targetBlendAlpha -= (float)dt;
+			demoState->targetBlendBeta -= (float)dt;
 		if (a3keyboardGetState(demoState->keyboard, a3key_rightArrow) > 0)
-			demoState->targetBlendAlpha += (float)dt;
+			demoState->targetBlendBeta += (float)dt;
 		
 		// change modes and toggles
 		if (a3keyboardIsChangedASCII(demoState->keyboard, '.') > 0)
@@ -1063,9 +1203,9 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 {
 	unsigned int i;
 
-	a3_HierarchyState *currentHierarchyState;
-
-//	float relativeTime;
+	const a3_HierarchyState *currentHierarchyState;
+	const a3_HierarchyPoseGroup *poseSourceGroup, *poseBlendGroup;
+	a3_ClipController *clipCtrl0, *clipCtrl1, *clipCtrl2;
 
 
 	// update scene objects
@@ -1080,143 +1220,173 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 	// animation: solve kinematics and do blending here
 
 	// first update test interpolation param
-	demoState->targetBlendAlpha = clamp(realZero, realOne, demoState->targetBlendAlpha);
-	demoState->blendAlpha = lerp(demoState->blendAlpha, demoState->targetBlendAlpha, demoState->targetBlendAlphaSmoothing);
-
-
-/*
-	// pose-to-pose
-	// let's shelve this for now
-	demoState->poseTime += (float)dt;
-	if (demoState->poseTime >= demoState->poseDuration)
-	{
-		demoState->poseTime -= demoState->poseDuration;
-		demoState->currentKeyPoseIndex = demoState->nextKeyPoseIndex;
-		demoState->nextKeyPoseIndex = (demoState->nextKeyPoseIndex + 1) % demoState->skeletonPoses->poseCount;
-	}
-	relativeTime = demoState->poseTime / demoState->poseDuration;
-*/
+	demoState->targetBlendBeta = clamp(realZero, realOne, demoState->targetBlendBeta);
+	demoState->blendBeta = lerp(demoState->blendBeta, demoState->targetBlendBeta, demoState->targetBlendBetaSmoothing);
 
 	currentHierarchyState = demoState->skeletonState_blend;
+	poseSourceGroup = demoState->skeletonPoses;
+	poseBlendGroup = demoState->skeletonPoses_blend;
 
+	// ****TO-DO: 
 	// proper update solution based on current mode
 	switch (demoState->animationMode)
 	{
-		// single pose blending
-		//	-> do blend operation
-		//	-> convert to matrix
-	case 0:
-		// -> do blend operation
-		// SCALE single pose
-		a3hierarchyNodePoseScale(demoState->objectPoseState_blend,
-			demoState->objectPoses + 0, demoState->blendAlpha,
-			a3poseFlag_rotate | a3poseFlag_scale | a3poseFlag_translate);
+		// idle
+	case 0: 
+		clipCtrl0 = demoState->ctrlIdle;
 
-		// convert to matrix
-		a3hierarchyNodePoseConvert(&demoState->blendingObject->modelMat,
-			demoState->objectPoseState_blend,
-			a3poseFlag_rotate | a3poseFlag_scale | a3poseFlag_translate);
+		// update clip
+		a3clipCtrlUpdate(clipCtrl0, (float)dt);
+
+		// yea yea
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 0,
+			poseSourceGroup->pose + clipCtrl0->frameIndex, poseSourceGroup->pose + clipCtrl0->nextIndex, clipCtrl0->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// concat with base
+		a3hierarchyPoseConcat(currentHierarchyState->localPose,
+			poseSourceGroup->pose, poseBlendGroup->pose + 0,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// get matricies 
+		a3hierarchyPoseConvert(currentHierarchyState->localSpace, currentHierarchyState->localPose,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// solve fk
+		a3kinematicsSolveForward(currentHierarchyState);
+
 		break;
+
+		// walk
 	case 1:
-		// LERP single pose
-		a3hierarchyNodePoseLERP(demoState->objectPoseState_blend,
-			demoState->objectPoses + 0, demoState->objectPoses + 1, demoState->blendAlpha,
-			a3poseFlag_rotate | a3poseFlag_scale | a3poseFlag_translate);
+		clipCtrl0 = demoState->ctrlWalk;
 
-		a3hierarchyNodePoseConvert(&demoState->blendingObject->modelMat,
-			demoState->objectPoseState_blend,
-			a3poseFlag_rotate | a3poseFlag_scale | a3poseFlag_translate);
+		// update clip
+		a3clipCtrlUpdate(clipCtrl0, (float)dt);
+
+		// yea yea
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 0,
+			poseSourceGroup->pose + clipCtrl0->frameIndex, poseSourceGroup->pose + clipCtrl0->nextIndex, clipCtrl0->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// concat with base
+		a3hierarchyPoseConcat(currentHierarchyState->localPose,
+			poseSourceGroup->pose, poseBlendGroup->pose + 0,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// get matricies 
+		a3hierarchyPoseConvert(currentHierarchyState->localSpace, currentHierarchyState->localPose,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// solve fk
+		a3kinematicsSolveForward(currentHierarchyState);
+
 		break;
+
+		// wobble
 	case 2:
-		// ADD single pose
-		a3hierarchyNodePoseConcat(demoState->objectPoseState_blend,
-			demoState->objectPoses + 0, demoState->objectPoses + 1,
-			a3poseFlag_rotate | a3poseFlag_scale | a3poseFlag_translate);
+		clipCtrl0 = demoState->ctrlWobble;
 
-		a3hierarchyNodePoseConvert(&demoState->blendingObject->modelMat,
-			demoState->objectPoseState_blend,
-			a3poseFlag_rotate | a3poseFlag_scale | a3poseFlag_translate);
+		// update clip
+		a3clipCtrlUpdate(clipCtrl0, (float)dt);
+
+		// yea yea
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 0,
+			poseSourceGroup->pose + clipCtrl0->frameIndex, poseSourceGroup->pose + clipCtrl0->nextIndex, clipCtrl0->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// concat with base
+		a3hierarchyPoseConcat(currentHierarchyState->localPose,
+			poseSourceGroup->pose, poseBlendGroup->pose + 0,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// get matricies 
+		a3hierarchyPoseConvert(currentHierarchyState->localSpace, currentHierarchyState->localPose,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// solve fk
+		a3kinematicsSolveForward(currentHierarchyState);
+
 		break;
 
-		// hierarchy pose blending
-		//	-> do blend operation
-		//	-> concatenate with 'base pose' (if one exists)
-		//	-> convert to matrix set
-		//	-> forward kinematics
+		// crouch
 	case 3:
-		// -> do blend operation
-		// SCALE hierarchy pose
-		a3hierarchyPoseScale(demoState->skeletonPoses_blend->pose + 0,
-			demoState->skeletonPoses->pose + 1, demoState->blendAlpha, demoState->skeleton->numNodes,
-			a3poseFlag_rotate | a3poseFlag_translate);
+		clipCtrl0 = demoState->ctrlCrouch;
 
-		// -> concatenate with base pose
-		a3hierarchyPoseConcat(demoState->skeletonState_blend->localPose,
-			demoState->skeletonPoses->pose, demoState->skeletonPoses_blend->pose + 0, demoState->skeleton->numNodes,
-			a3poseFlag_rotate | a3poseFlag_translate);
-		// -> convert to matrices
-		a3hierarchyPoseConvert(demoState->skeletonState_blend->localSpace, 
-			demoState->skeletonState_blend->localPose, demoState->skeleton->numNodes, 
-			a3poseFlag_rotate | a3poseFlag_translate);
-		// -> FK
+		// update clip
+		a3clipCtrlUpdate(clipCtrl0, (float)dt);
+
+		// yea yea
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 0,
+			poseSourceGroup->pose + clipCtrl0->frameIndex, poseSourceGroup->pose + clipCtrl0->nextIndex, clipCtrl0->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// concat with base
+		a3hierarchyPoseConcat(currentHierarchyState->localPose,
+			poseSourceGroup->pose, poseBlendGroup->pose + 0,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// get matricies 
+		a3hierarchyPoseConvert(currentHierarchyState->localSpace, currentHierarchyState->localPose,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// solve fk
 		a3kinematicsSolveForward(currentHierarchyState);
+
 		break;
+
+		// idle + crouch
 	case 4:
-		// LERP hierarchy pose
-		a3hierarchyPoseLERP(demoState->skeletonPoses_blend->pose + 0,
-			demoState->skeletonPoses->pose + 1, demoState->skeletonPoses->pose + 2, demoState->blendAlpha, demoState->skeleton->numNodes,
-			a3poseFlag_rotate | a3poseFlag_translate);
+		clipCtrl0 = demoState->ctrlIdle;
+		clipCtrl1 = demoState->ctrlCrouch;
 
-		a3hierarchyPoseConcat(demoState->skeletonState_blend->localPose,
-			demoState->skeletonPoses->pose, demoState->skeletonPoses_blend->pose + 0, demoState->skeleton->numNodes,
-			a3poseFlag_rotate | a3poseFlag_translate);
-		a3hierarchyPoseConvert(demoState->skeletonState_blend->localSpace,
-			demoState->skeletonState_blend->localPose, demoState->skeleton->numNodes,
-			a3poseFlag_rotate | a3poseFlag_translate);
-		a3kinematicsSolveForward(currentHierarchyState);
 		break;
-	case 5:
-		// ADD hierarchy pose
-		a3hierarchyPoseConcat(demoState->skeletonPoses_blend->pose + 0,
-			demoState->skeletonPoses->pose + 1, demoState->skeletonPoses->pose + 2, demoState->skeleton->numNodes,
-			a3poseFlag_rotate | a3poseFlag_translate);
 
-		a3hierarchyPoseConcat(demoState->skeletonState_blend->localPose,
-			demoState->skeletonPoses->pose, demoState->skeletonPoses_blend->pose + 0, demoState->skeleton->numNodes,
-			a3poseFlag_rotate | a3poseFlag_translate);
-		a3hierarchyPoseConvert(demoState->skeletonState_blend->localSpace,
-			demoState->skeletonState_blend->localPose, demoState->skeleton->numNodes,
-			a3poseFlag_rotate | a3poseFlag_translate);
-		a3kinematicsSolveForward(currentHierarchyState);
+		// walk + crouch
+	case 5:
+		clipCtrl0 = demoState->ctrlWalk;
+		clipCtrl1 = demoState->ctrlCrouch;
+
+		break;
+
+		// walk -> walk + crouch
+	case 6:
+		clipCtrl0 = demoState->ctrlWalk;
+		clipCtrl1 = demoState->ctrlCrouch;
+
+		break;
+
+		// walk + wobble -> walk + wobble + crouch
+	case 7:
+		clipCtrl0 = demoState->ctrlWalk;
+		clipCtrl1 = demoState->ctrlWobble;
+		clipCtrl2 = demoState->ctrlCrouch;
+
 		break;
 	}
-
-	// debugging: set output poses for testing
-/*
-	demoState->objectPoseState_blend[0] = demoState->objectPoses[0];
-//	demoState->objectPoseState_blend[0] = demoState->objectPoses[1];
-	a3hierarchyNodePoseConvert(&demoState->blendingObject->modelMat,
-		demoState->objectPoseState_blend,
-		a3poseFlag_rotate | a3poseFlag_scale | a3poseFlag_translate);
-*/
-/*
-	a3hierarchyPoseConcat(demoState->skeletonState_blend->localPose,
-		demoState->skeletonPoses->pose, demoState->skeletonPoses->pose + 1, demoState->skeleton->numNodes,
-		a3poseFlag_rotate | a3poseFlag_translate);
-//	a3hierarchyPoseConcat(demoState->skeletonState_blend->localPose,
-//		demoState->skeletonPoses->pose, demoState->skeletonPoses->pose + 2, demoState->skeleton->numNodes,
-//		a3poseFlag_rotate | a3poseFlag_translate);
-	a3hierarchyPoseConvert(demoState->skeletonState_blend->localSpace,
-		demoState->skeletonState_blend->localPose, demoState->skeleton->numNodes,
-		a3poseFlag_rotate | a3poseFlag_translate);
-	a3kinematicsSolveForward(currentHierarchyState);
-*/
 
 	// update input
 	a3mouseUpdate(demoState->mouse);
 	a3keyboardUpdate(demoState->keyboard);
 	a3XboxControlUpdate(demoState->xcontrol);
 }
+
+
+// utility to draw info for clip controller
+inline void a3demo_drawClipCtrl(const a3_ClipController *ctrl, const a3_TextRenderer *text, const float x_ndc, const float y_ndc)
+{
+	const a3_Clip *clip = ctrl->clipGroup->clips + ctrl->clipIndex;
+
+	a3textDraw(text, x_ndc, y_ndc, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+		"Clip controller: clip = '%s'", clip->name);
+	a3textDraw(text, x_ndc, y_ndc - 0.05f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+		"  frame index = %u;  next index = %u;  range = [%u, %u]", ctrl->frameIndex, ctrl->nextIndex, clip->first, clip->last);
+	a3textDraw(text, x_ndc, y_ndc - 0.10f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+		"  frame time/duration (param) = %f / %f (%f)", ctrl->frameTime, clip->frameDuration, ctrl->frameParam);
+	a3textDraw(text, x_ndc, y_ndc - 0.15f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+		"   clip time/duration (param) = %f / %f (%f)", ctrl->clipTime, clip->clipDuration, ctrl->clipParam);
+}
+
 
 void a3demo_render(const a3_DemoState *demoState)
 {
@@ -1284,12 +1454,9 @@ void a3demo_render(const a3_DemoState *demoState)
 		0.0f, 0.0f, 0.0f, 1.0f,
 	};
 
-	// transformed vectors
-	p3vec4 lightPos_obj, eyePos_obj;
 
 	// final model matrix and full matrix stack
 	p3mat4 modelMat = p3identityMat4, modelMatInv = p3identityMat4, modelViewProjectionMat = p3identityMat4;
-	p3mat4 modelMatOrig;
 
 	// current scene object being rendered, for convenience
 	const a3_DemoSceneObject *currentSceneObject;
@@ -1317,10 +1484,14 @@ void a3demo_render(const a3_DemoState *demoState)
 	//	- move lighting objects' positions into object space
 	//	- send uniforms
 	//	- draw
-
+/*
 	// draw teapot
 	if (demoState->animationMode <= 2)
 	{
+		// transformed vectors
+		p3vec4 lightPos_obj, eyePos_obj;
+		p3mat4 modelMatOrig;
+
 		currentSceneObject = demoState->blendingObject;
 
 		// draw model
@@ -1349,46 +1520,46 @@ void a3demo_render(const a3_DemoState *demoState)
 		a3textureActivate(demoState->tex_checker, a3tex_unit00);
 		a3textureActivate(demoState->tex_checker, a3tex_unit01);
 		a3vertexActivateAndRenderDrawable(currentDrawable);
-
-
-	/*
-		// overlay items
-		glDisable(GL_DEPTH_TEST);
-
-		// draw gimbal
-		currentDemoProgram = demoState->prog_drawColorUnif;
-		a3shaderProgramActivate(currentDemoProgram->program);
-
-		glCullFace(GL_FRONT);
-		currentDrawable = demoState->draw_gimbal;
-		a3vertexActivateDrawable(currentDrawable);
-		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
-		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-		a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 12);
-		a3vertexRenderActiveDrawable();
-		glCullFace(GL_BACK);
-
-		currentDrawable = demoState->draw_ring;
-		a3vertexActivateDrawable(currentDrawable);
-		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
-		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-		a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 8);
-		a3vertexRenderActiveDrawable();
-		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
-		p3real4x4ConcatL(modelViewProjectionMat.m, convertZ2Y.m);
-		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-		a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 4);
-		a3vertexRenderActiveDrawable();
-		p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
-		p3real4x4ConcatL(modelViewProjectionMat.m, convertZ2X.m);
-		a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
-		a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 0);
-		a3vertexRenderActiveDrawable();
-	*/
 	}
+*/
+	
+/*
+	// overlay items
+	glDisable(GL_DEPTH_TEST);
+
+	// draw gimbal
+	currentDemoProgram = demoState->prog_drawColorUnif;
+	a3shaderProgramActivate(currentDemoProgram->program);
+
+	glCullFace(GL_FRONT);
+	currentDrawable = demoState->draw_gimbal;
+	a3vertexActivateDrawable(currentDrawable);
+	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 12);
+	a3vertexRenderActiveDrawable();
+	glCullFace(GL_BACK);
+
+	currentDrawable = demoState->draw_ring;
+	a3vertexActivateDrawable(currentDrawable);
+	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 8);
+	a3vertexRenderActiveDrawable();
+	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+	p3real4x4ConcatL(modelViewProjectionMat.m, convertZ2Y.m);
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 4);
+	a3vertexRenderActiveDrawable();
+	p3real4x4Product(modelViewProjectionMat.m, demoState->camera->viewProjectionMat.m, modelMatOrig.m);
+	p3real4x4ConcatL(modelViewProjectionMat.m, convertZ2X.m);
+	a3shaderUniformSendFloatMat(a3unif_mat4, 0, currentDemoProgram->uMVP, 1, modelViewProjectionMat.mm);
+	a3shaderUniformSendFloat(a3unif_vec4, currentDemoProgram->uColor, 1, rgba4 + 0);
+	a3vertexRenderActiveDrawable();
+*/
 	
 	// draw skeleton
-	else
+//	else
 	{
 		const a3_HierarchyState *currentHierarchyState;
 
@@ -1511,11 +1682,11 @@ void a3demo_render(const a3_DemoState *demoState)
 
 
 		// display edit joints
-		switch (demoState->animationMode)
-		{
-		case 0:
-			break;
-		}
+	//	switch (demoState->animationMode)
+	//	{
+	//	case 0:
+	//		break;
+	//	}
 	}
 
 	glEnable(GL_DEPTH_TEST);
@@ -1545,12 +1716,14 @@ void a3demo_render(const a3_DemoState *demoState)
 	{
 		// display mode info
 		const char *modeText[] = {
-			"Single pose SCALE",
-			"Single pose LERP",
-			"Single pose ADD",
-			"Hierarchy pose SCALE",
-			"Hierarchy pose LERP",
-			"Hierarchy pose ADD",
+			"Animation clip: idle",
+			"Animation clip: walk",
+			"Animation diff clip: wobble",
+			"Animation diff clip: crouch",
+			"Animation blending: idle + crouch",
+			"Animation blending: walk + crouch",
+			"Animation blending: walk <--> walk + crouch",
+			"Animation blending: walk + wobble <--> walk + wobble + crouch",
 		};
 
 		glDisable(GL_DEPTH_TEST);
@@ -1563,29 +1736,46 @@ void a3demo_render(const a3_DemoState *demoState)
 		// display specific mode data
 		switch (demoState->animationMode)
 		{
-		case 0:
-			a3textDraw(demoState->text, -0.98f, +0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"SCALE(P0, a)       Interpolation parameter (a) = %f", demoState->blendAlpha);
+			// idle
+		case 0: 
+			a3demo_drawClipCtrl(demoState->ctrlIdle, demoState->text, -0.98f, +0.80f);
 			break;
+			// walk
 		case 1:
-			a3textDraw(demoState->text, -0.98f, +0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				" LERP(P0, P1, a)   Interpolation parameter (a) = %f", demoState->blendAlpha);
+			a3demo_drawClipCtrl(demoState->ctrlWalk, demoState->text, -0.98f, +0.80f);
 			break;
+			// wobble
 		case 2:
-			a3textDraw(demoState->text, -0.98f, +0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"  ADD(P0, P1)");
+			a3demo_drawClipCtrl(demoState->ctrlWobble, demoState->text, -0.98f, +0.80f);
 			break;
+			// crouch
 		case 3:
-			a3textDraw(demoState->text, -0.98f, +0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"SCALE(H0, a)       Pose count = %u; Interpolation parameter (a) = %f", demoState->skeleton->numNodes, demoState->blendAlpha);
+			a3demo_drawClipCtrl(demoState->ctrlCrouch, demoState->text, -0.98f, +0.80f);
 			break;
+			// idle + crouch
 		case 4:
-			a3textDraw(demoState->text, -0.98f, +0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				" LERP(H0, H1, a)   Pose count = %u; Interpolation parameter (a) = %f", demoState->skeleton->numNodes, demoState->blendAlpha);
+			a3demo_drawClipCtrl(demoState->ctrlIdle, demoState->text, -0.98f, +0.80f);
+			a3demo_drawClipCtrl(demoState->ctrlCrouch, demoState->text, -0.98f, +0.60f);
 			break;
+			// walk + crouch
 		case 5:
-			a3textDraw(demoState->text, -0.98f, +0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"  ADD(H0, H1)      Pose count = %u", demoState->skeleton->numNodes);
+			a3demo_drawClipCtrl(demoState->ctrlWalk, demoState->text, -0.98f, +0.80f);
+			a3demo_drawClipCtrl(demoState->ctrlCrouch, demoState->text, -0.98f, +0.60f);
+			break;
+			// walk -> walk + crouch
+		case 6:
+			a3demo_drawClipCtrl(demoState->ctrlWalk, demoState->text, -0.98f, +0.80f);
+			a3demo_drawClipCtrl(demoState->ctrlCrouch, demoState->text, -0.98f, +0.60f);
+			a3textDraw(demoState->text, -0.98f, +0.35f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+				"    Blend param = %f", demoState->blendBeta);
+			break;
+			// walk + wobble -> walk + wobble + crouch
+		case 7:
+			a3demo_drawClipCtrl(demoState->ctrlWalk, demoState->text, -0.98f, +0.80f);
+			a3demo_drawClipCtrl(demoState->ctrlWobble, demoState->text, -0.98f, +0.60f);
+			a3demo_drawClipCtrl(demoState->ctrlCrouch, demoState->text, -0.98f, +0.40f);
+			a3textDraw(demoState->text, -0.98f, +0.15f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+				"    Blend param = %f", demoState->blendBeta);
 			break;
 		}
 
@@ -1593,28 +1783,28 @@ void a3demo_render(const a3_DemoState *demoState)
 		if (a3XboxControlIsConnected(demoState->xcontrol))
 		{
 			a3textDraw(demoState->text, -0.98f, -0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"Xbox controller input: Move: Right joystick, triggers");
+				"Xbox controller input: Move camera: Right joystick, triggers");
 			a3textDraw(demoState->text, -0.98f, -0.80f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"                       Rotate: Left joystick");
+				"                       Rotate camera: Left joystick");
 			a3textDraw(demoState->text, -0.98f, -0.85f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"                       Change interpolation param: <-    D pad   ->");
-			a3textDraw(demoState->text, -0.98f, -0.90f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 				"                       Toggle joint axes: 'X'; names: 'Y' ");
-			a3textDraw(demoState->text, -0.98f, -0.95f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			a3textDraw(demoState->text, -0.98f, -0.90f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 				"                       Toggle demo mode: back <- | -> start");
+			a3textDraw(demoState->text, -0.98f, -0.95f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+				"                       Change interpolation param: <-    D pad   ->");
 		}
 		else
 		{
 			a3textDraw(demoState->text, -0.98f, -0.75f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"Keyboard/mouse input:  Move: WASDEQ");
+				"Keyboard/mouse input:  Move camera: WASDEQ");
 			a3textDraw(demoState->text, -0.98f, -0.80f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"                       Rotate: Left click and drag");
+				"                       Rotate camera: Left click and drag");
 			a3textDraw(demoState->text, -0.98f, -0.85f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
-				"                       Change interpolation param: <- arrow keys ->");
-			a3textDraw(demoState->text, -0.98f, -0.90f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 				"                       Toggle joint axes: 'X'; names: 'x' ");
-			a3textDraw(demoState->text, -0.98f, -0.95f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+			a3textDraw(demoState->text, -0.98f, -0.90f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
 				"                       Toggle demo mode:  ',' <- | -> '.' ");
+			a3textDraw(demoState->text, -0.98f, -0.95f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+				"                       Change interpolation param: <- arrow keys ->");
 		}
 
 		glEnable(GL_DEPTH_TEST);

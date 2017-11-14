@@ -1,25 +1,25 @@
 /*
-	Copyright 2011-2017 Daniel S. Buckstein
+Copyright 2011-2017 Daniel S. Buckstein
 
-	Licensed under the Apache License, Version 2.0 (the "License");
-	you may not use this file except in compliance with the License.
-	You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-		http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
-	Unless required by applicable law or agreed to in writing, software
-	distributed under the License is distributed on an "AS IS" BASIS,
-	WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	See the License for the specific language governing permissions and
-	limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 
 /*
-	animal3D SDK: Minimal 3D Animation Framework
-	By Daniel S. Buckstein
-	
-	a3_HierarchyState.c
-	Implementation of transform hierarchy state.
+animal3D SDK: Minimal 3D Animation Framework
+By Daniel S. Buckstein
+
+a3_HierarchyState.c
+Implementation of transform hierarchy state.
 */
 
 #include "a3_HierarchyState.h"
@@ -75,7 +75,7 @@ inline void a3hierarchyNodePoseInvert_internal(a3_HierarchyNodePose *nodePose_ou
 {
 	// rotation: quaternion conjugate covers either quaternions or Euler angles
 	a3quatConjugate(nodePose_out->orientation.v, invertNodePose->orientation.v);
-	
+
 	// not quite the same idea for translation but functional
 	a3quatConjugate(nodePose_out->translation.v, invertNodePose->translation.v);
 
@@ -96,269 +96,218 @@ inline void a3hierarchyPoseInvert_internal(const a3_HierarchyPose *pose_out, con
 
 
 // ****TO-DO: implement internal node operations
-
-// lerp components
-inline void a3hierarchyNodePoseLerp_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float param)
+inline void a3hierarchyNodePoseLERP_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float param)
 {
+	// rotation: lerp
 	p3real4Lerp(nodePose_out->orientation.v, nodePose0->orientation.v, nodePose1->orientation.v, param);
 
+	// translation: lerp
 	p3real4Lerp(nodePose_out->translation.v, nodePose0->translation.v, nodePose1->translation.v, param);
 
+	// scale: lerp
 	p3real4Lerp(nodePose_out->scale.v, nodePose0->scale.v, nodePose1->scale.v, param);
 }
 
-inline void a3hierarchyNodePoseLerp_quat_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float param)
+inline void a3hierarchyNodePoseLERP_quaternion_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const float param)
 {
+	// rotation: lerp
 	a3quatUnitSLERP(nodePose_out->orientation.v, nodePose0->orientation.v, nodePose1->orientation.v, param);
 
+	// translation: lerp
 	p3real4Lerp(nodePose_out->translation.v, nodePose0->translation.v, nodePose1->translation.v, param);
 
+	// scale: lerp
 	p3real4Lerp(nodePose_out->scale.v, nodePose0->scale.v, nodePose1->scale.v, param);
 }
 
-// concatenation (ADD)
-inline void a3hierarchyNodePoseConcat_internal(a3_HierarchyNodePose *nodePose_out, 
-	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1)
+inline void a3hierarchyNodePoseConcat_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1)
 {
-	// rotation add
+	// rotation: add
 	p3real4Sum(nodePose_out->orientation.v, nodePose0->orientation.v, nodePose1->orientation.v);
 
-	// translate add
+	// traslate: add
 	p3real4Sum(nodePose_out->translation.v, nodePose0->translation.v, nodePose1->translation.v);
-	
-	// scale multiply
+
+	// scale: component product
 	nodePose_out->scale.x = nodePose0->scale.x * nodePose1->scale.x;
 	nodePose_out->scale.y = nodePose0->scale.y * nodePose1->scale.y;
 	nodePose_out->scale.z = nodePose0->scale.z * nodePose1->scale.z;
 	nodePose_out->scale.w = nodePose0->scale.w * nodePose1->scale.w;
 }
 
-inline void a3hierarchyNodePoseConcat_quat_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1)
+inline void a3hierarchyNodePoseConcat_quaternion_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1)
 {
-	// rotation quat concat
+	// rotation: add
 	a3quatConcat(nodePose_out->orientation.v, nodePose0->orientation.v, nodePose1->orientation.v);
 
-	//translate add
+	// traslate: add
 	p3real4Sum(nodePose_out->translation.v, nodePose0->translation.v, nodePose1->translation.v);
 
-	//scale multiply
+	// scale: component product
 	nodePose_out->scale.x = nodePose0->scale.x * nodePose1->scale.x;
 	nodePose_out->scale.y = nodePose0->scale.y * nodePose1->scale.y;
 	nodePose_out->scale.z = nodePose0->scale.z * nodePose1->scale.z;
 	nodePose_out->scale.w = nodePose0->scale.w * nodePose1->scale.w;
 }
 
-// scale: Lerp from identity
-inline void a3hierarchyNodePoseScale_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose, const float param)
+inline void a3hierarchyNodePoseScale_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose* nodePose, const float param)
 {
-	// rotation: scalar multiply
+	// rotation: scalar mulitply
 	p3real4ProductS(nodePose_out->orientation.v, nodePose->orientation.v, param);
 
-	// translate: scalar multiply
+	// translation: scalar multiply
 	p3real4ProductS(nodePose_out->translation.v, nodePose->translation.v, param);
 
-	// scale: lerp from 1 vector
+	// scale: lerp from 1
 	p3real4Lerp(nodePose_out->scale.v, p3oneVec4.v, nodePose->scale.v, param);
 }
 
-inline void a3hierarchyNodePoseScale_quat_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose, const float param)
+inline void a3hierarchyNodePoseScale_quaternion_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose* nodePose, const float param)
 {
-	// rotation: scalar multiply
+	// rotation: scalar mulitply
 	a3quatUnitSLERP(nodePose_out->orientation.v, p3wVec4.v, nodePose->orientation.v, param);
 
-	// translate: scalar multiply
+	// translation: scalar multiply
 	p3real4ProductS(nodePose_out->translation.v, nodePose->translation.v, param);
 
-	// scale: lerp from 1 vector
+	// scale: lerp from 1
 	p3real4Lerp(nodePose_out->scale.v, p3oneVec4.v, nodePose->scale.v, param);
 }
 
-
-// lerp components
-inline void a3hierarchyPoseLerp_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param, 
-	const unsigned int nodeCount)
+inline void a3hierarchyNodePoseBlend_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose* nodePose0, const a3_HierarchyNodePose* nodePose1, const float param0, const float param1)
 {
-	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
-	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
-	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseLerp_internal(nodePose_out++, nodePose0++, nodePose1++, param);
-	}
-}
-
-inline void a3hierarchyPoseLerp_quat_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param,
-	const unsigned int nodeCount)
-{
-	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
-	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
-	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseLerp_quat_internal(nodePose_out++, nodePose0++, nodePose1++, param);
-	}
-}
-
-// concatenation (ADD)
-inline void a3hierarchyPoseConcat_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1,
-	const unsigned int nodeCount)
-{
-	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
-	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
-	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseConcat_internal(nodePose_out++, nodePose0++, nodePose1++);
-	}
-}
-
-inline void a3hierarchyPoseConcat_quat_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1,
-	const unsigned int nodeCount)
-{
-	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
-	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
-	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseConcat_quat_internal(nodePose_out++, nodePose0++, nodePose1++);
-	}
-}
-
-// scale: Lerp from identity
-inline void a3hierarchyPoseScale_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose, const float param,
-	const unsigned int nodeCount)
-{
-	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
-	const a3_HierarchyNodePose *nodePose0 = pose->nodePose;
-	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseScale_internal(nodePose_out++, nodePose0++, param);
-	}
-}
-
-inline void a3hierarchyPoseScale_quat_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose, const float param,
-	const unsigned int nodeCount)
-{
-	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
-	const a3_HierarchyNodePose *nodePose0 = pose->nodePose;
-	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseScale_quat_internal(nodePose_out++, nodePose0++, param);
-	}
-}
-
-// blend: weighted average between two poses
-inline void a3hierarchyNodePoseBlend_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1,
-	const float param0, const float param1)
-{
-	// first  "tree" example
-	// - scale poses by weights
-	// - add results
 	a3_HierarchyNodePose tmpPose0[1], tmpPose1[1];
+
+	// scale pose0 by weight0
 	a3hierarchyNodePoseScale_internal(tmpPose0, nodePose0, param0);
+
+	// scale pose1 by weight1
 	a3hierarchyNodePoseScale_internal(tmpPose1, nodePose1, param1);
+
+	// add the results
 	a3hierarchyNodePoseConcat_internal(nodePose_out, tmpPose0, tmpPose1);
 }
 
-inline void a3hierarchyNodePoseBlend_quat_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1,
-	const float param0, const float param1)
+inline void a3hierarchyNodePoseBlend_quaternion_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose* nodePose0, const a3_HierarchyNodePose* nodePose1, const float param0, const float param1)
 {
-	// first  "tree" example
-	// - scale poses by weights
-	// - add results
-	a3_HierarchyNodePose tmpPose0[1], tmpPose1[1];
-	a3hierarchyNodePoseScale_quat_internal(tmpPose0, nodePose0, param0);
-	a3hierarchyNodePoseScale_quat_internal(tmpPose1, nodePose1, param1);
-	a3hierarchyNodePoseConcat_quat_internal(nodePose_out, tmpPose0, tmpPose1);
-}
-
-inline void a3hierarchyNodePoseTriLerp_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyNodePose *nodePose2,
-	const float param0, const float param1, const float param2)
-{
-	// second "tree" example
 	a3_HierarchyNodePose tmpPose0[1], tmpPose1[1];
 
-	a3hierarchyNodePoseBlend_internal(tmpPose0, nodePose0, nodePose1, param0, param1);
-	a3hierarchyNodePoseScale_internal(tmpPose1, nodePose2, param2);
-	a3hierarchyNodePoseConcat_internal(nodePose_out, tmpPose0, tmpPose1);
+	// scale pose0 by weight0
+	a3hierarchyNodePoseScale_quaternion_internal(tmpPose0, nodePose0, param0);
+
+	// scale pose1 by weight1
+	a3hierarchyNodePoseScale_quaternion_internal(tmpPose1, nodePose1, param1);
+
+	// add the results
+	a3hierarchyNodePoseConcat_quaternion_internal(nodePose_out, tmpPose0, tmpPose1);
 }
 
-inline void a3hierarchyNodePoseTriLerp_quat_internal(a3_HierarchyNodePose *nodePose_out,
-	const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyNodePose *nodePose2,
-	const float param0, const float param1, const float param2)
+inline void a3hierarchyNodePoseTriangularLERP_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyNodePose *nodePose2, const float param0, const float param1, const float param2)
 {
-	// second "tree" example
-	a3_HierarchyNodePose tmpPose0[1], tmpPose1[1];
+	a3_HierarchyNodePose* tmpBlend[1], tmpScale[1];
 
-	a3hierarchyNodePoseBlend_quat_internal(tmpPose0, nodePose0, nodePose1, param0, param1);
-	a3hierarchyNodePoseScale_quat_internal(tmpPose1, nodePose2, param2);
-	a3hierarchyNodePoseConcat_quat_internal(nodePose_out, tmpPose0, tmpPose1);
+	a3hierarchyNodePoseBlend_internal(tmpBlend, nodePose0, nodePose1, param0, param1);
+	a3hierarchyNodePoseScale_internal(tmpScale, nodePose2, param2);
+	a3hierarchyNodePoseConcat_internal(nodePose_out, tmpBlend, tmpScale);
 }
 
+inline void a3hierarchyNodePoseTriangularLERP_quaternion_internal(a3_HierarchyNodePose *nodePose_out, const a3_HierarchyNodePose *nodePose0, const a3_HierarchyNodePose *nodePose1, const a3_HierarchyNodePose *nodePose2, const float param0, const float param1, const float param2)
+{
+	a3_HierarchyNodePose* tmpBlend[1], tmpScale[1];
 
-// scale: Lerp from identity
-inline void a3hierarchyPoseBlend_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1,
-	const float param0, const float param1,
-	const unsigned int nodeCount)
+	a3hierarchyNodePoseBlend_quaternion_internal(tmpBlend, nodePose0, nodePose1, param0, param1);
+	a3hierarchyNodePoseScale_quaternion_internal(tmpScale, nodePose2, param2);
+	a3hierarchyNodePoseConcat_quaternion_internal(nodePose_out, tmpBlend, tmpScale);
+}
+
+inline void a3hierarchyPoseLERP_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param, const unsigned int nodeCount)
 {
 	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
 	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+
 	while (nodePose_out < end)
-	{
+		a3hierarchyNodePoseLERP_internal(nodePose_out++, nodePose0++, nodePose1++, param);
+}
+
+inline void a3hierarchyPoseLERP_quaternion_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param, const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+
+	while (nodePose_out < end)
+		a3hierarchyNodePoseLERP_quaternion_internal(nodePose_out++, nodePose0++, nodePose1++, param);
+}
+
+inline void a3hierarchyPoseConcat_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+
+	while (nodePose_out < end)
+		a3hierarchyNodePoseConcat_internal(nodePose_out++, nodePose0++, nodePose1++);
+}
+
+inline void a3hierarchyPoseConcat_quaternion_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+
+	while (nodePose_out < end)
+		a3hierarchyNodePoseConcat_quaternion_internal(nodePose_out++, nodePose0++, nodePose1++);
+}
+
+inline void a3hierarchyPoseScale_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose, const float param, const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose = pose->nodePose;
+
+	while (nodePose_out < end)
+		a3hierarchyNodePoseScale_internal(nodePose_out++, nodePose++, param);
+}
+
+inline void a3hierarchyPoseScale_quaternion_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const float param, const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose = pose0->nodePose;
+
+	while (nodePose_out < end)
+		a3hierarchyNodePoseScale_quaternion_internal(nodePose_out++, nodePose++, param);
+}
+
+inline void a3hierarchyPoseBlend_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param0, const float param1, const unsigned int nodeCount)
+{
+	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
+	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+
+	while (nodePose_out < end)
 		a3hierarchyNodePoseBlend_internal(nodePose_out++, nodePose0++, nodePose1++, param0, param1);
-	}
 }
 
-// scale: Lerp from identity
-inline void a3hierarchyPoseBlend_quat_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1,
-	const float param0, const float param1,
-	const unsigned int nodeCount)
+inline void a3hierarchyPoseBlend_quaternion_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const float param0, const float param1, const unsigned int nodeCount)
 {
 	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
 	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose;
+
 	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseBlend_quat_internal(nodePose_out++, nodePose0++, nodePose1++, param0, param1);
-	}
+		a3hierarchyNodePoseBlend_quaternion_internal(nodePose_out++, nodePose0++, nodePose1++, param0, param1);
 }
 
-
-inline void a3hierarchyPoseTriLerp_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const a3_HierarchyPose *pose2,
-	const float param0, const float param1, const float param2,
-	const unsigned int nodeCount)
+inline void a3hierarchyPoseTriangularLERP_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const a3_HierarchyPose *pose2, const float param0, const float param1, const float param2, const unsigned int nodeCount)
 {
 	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
 	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose, *nodePose2 = pose2->nodePose;
+
 	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseTriLerp_internal(nodePose_out++, nodePose0++, nodePose1++, nodePose2++, param0, param1, param2);
-	}
+		a3hierarchyNodePoseTriangularLERP_internal(nodePose_out++, nodePose0++, nodePose1++, nodePose2++, param0, param1, param2);
 }
 
-inline void a3hierarchyPoseTriLerp_quat_internal(a3_HierarchyPose *pose_out,
-	const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const a3_HierarchyPose *pose2,
-	const float param0, const float param1, const float param2,
-	const unsigned int nodeCount)
+inline void a3hierarchyPoseTriangularLERP_quaternion_internal(a3_HierarchyPose *pose_out, const a3_HierarchyPose *pose0, const a3_HierarchyPose *pose1, const a3_HierarchyPose *pose2, const float param0, const float param1, const float param2, const unsigned int nodeCount)
 {
 	a3_HierarchyNodePose *nodePose_out = pose_out->nodePose, *const end = nodePose_out + nodeCount;
 	const a3_HierarchyNodePose *nodePose0 = pose0->nodePose, *nodePose1 = pose1->nodePose, *nodePose2 = pose2->nodePose;
+
 	while (nodePose_out < end)
-	{
-		a3hierarchyNodePoseTriLerp_quat_internal(nodePose_out++, nodePose0++, nodePose1++, nodePose2++, param0, param1, param2);
-	}
+		a3hierarchyNodePoseTriangularLERP_quaternion_internal(nodePose_out++, nodePose0++, nodePose1++, nodePose2++, param0, param1, param2);
 }
 
 // convert pose to transformation matrix
@@ -603,8 +552,8 @@ extern inline int a3hierarchyPoseGroupCreate(a3_HierarchyPoseGroup *poseGroup_ou
 		poseGroup_out->pose = (a3_HierarchyPose *)(poseGroup_out->nodePoseContiguous + totalPoses);
 
 		// set all pointers and reset all poses
-		for (i = 0, nodePosePtr = poseGroup_out->nodePoseContiguous, posePtr = poseGroup_out->pose; 
-			i < poseCount; 
+		for (i = 0, nodePosePtr = poseGroup_out->nodePoseContiguous, posePtr = poseGroup_out->pose;
+			i < poseCount;
 			++i, nodePosePtr += nodeCount, ++posePtr)
 		{
 			posePtr->nodePose = nodePosePtr;
@@ -754,9 +703,9 @@ extern inline int a3hierarchyNodePoseLERP(a3_HierarchyNodePose *nodePose_out, co
 	if (nodePose_out && nodePose0 && nodePose1)
 	{
 		if (flag & a3poseFlag_quat)
-			a3hierarchyNodePoseLerp_quat_internal(nodePose_out, nodePose0, nodePose1, param);
+			a3hierarchyNodePoseLERP_quaternion_internal(nodePose_out, nodePose0, nodePose1, param);
 		else
-			a3hierarchyNodePoseLerp_internal(nodePose_out, nodePose0, nodePose1, param);
+			a3hierarchyNodePoseLERP_internal(nodePose_out, nodePose0, nodePose1, param);
 		return 1;
 	}
 	return -1;
@@ -768,7 +717,7 @@ extern inline int a3hierarchyNodePoseConcat(a3_HierarchyNodePose *nodePose_out, 
 	if (nodePose_out && nodePose0 && nodePose1)
 	{
 		if (flag & a3poseFlag_quat)
-			a3hierarchyNodePoseConcat_quat_internal(nodePose_out, nodePose0, nodePose1);
+			a3hierarchyNodePoseConcat_quaternion_internal(nodePose_out, nodePose0, nodePose1);
 		else
 			a3hierarchyNodePoseConcat_internal(nodePose_out, nodePose0, nodePose1);
 		return 1;
@@ -782,7 +731,7 @@ extern inline int a3hierarchyNodePoseScale(a3_HierarchyNodePose *nodePose_out, c
 	if (nodePose_out && nodePoseScale)
 	{
 		if (flag & a3poseFlag_quat)
-			a3hierarchyNodePoseScale_quat_internal(nodePose_out, nodePoseScale, param);
+			a3hierarchyNodePoseScale_quaternion_internal(nodePose_out, nodePoseScale, param);
 		else
 			a3hierarchyNodePoseScale_internal(nodePose_out, nodePoseScale, param);
 		return 1;
@@ -796,7 +745,7 @@ extern inline int a3hierarchyNodePoseBlend(a3_HierarchyNodePose *nodePose_out, c
 	if (nodePose_out && nodePose0 && nodePose1)
 	{
 		if (flag & a3poseFlag_quat)
-			a3hierarchyNodePoseBlend_quat_internal(nodePose_out, nodePose0, nodePose1, weight0, weight1);
+			a3hierarchyNodePoseBlend_quaternion_internal(nodePose_out, nodePose0, nodePose1, weight0, weight1);
 		else
 			a3hierarchyNodePoseBlend_internal(nodePose_out, nodePose0, nodePose1, weight0, weight1);
 		return 1;
@@ -809,12 +758,10 @@ extern inline int a3hierarchyNodePoseTriangularLERP(a3_HierarchyNodePose *nodePo
 {
 	if (nodePose_out && nodePose0 && nodePose1 && nodePose2)
 	{
-		const float param2 = 1.0f - param0 - param1;
-
 		if (flag & a3poseFlag_quat)
-			a3hierarchyNodePoseTriLerp_quat_internal(nodePose_out, nodePose0, nodePose1, nodePose2, param0, param1, param2);
+			a3hierarchyNodePoseTriangularLERP_quaternion_internal(nodePose_out, nodePose0, nodePose1, nodePose2, param0, param1, 1 - param0 - param1);
 		else
-			a3hierarchyNodePoseTriLerp_internal(nodePose_out, nodePose0, nodePose1, nodePose2, param0, param1, param2);
+			a3hierarchyNodePoseTriangularLERP_internal(nodePose_out, nodePose0, nodePose1, nodePose2, param0, param1, 1 - param0 - param1);
 		return 1;
 	}
 	return -1;
@@ -881,7 +828,7 @@ extern inline int a3hierarchyNodePoseConvert(p3mat4 *mat_out, const a3_Hierarchy
 			break;
 
 			// no transform case
-		default: 
+		default:
 			// none
 			a3hierarchyNodePoseConvert_identity_internal(mat_out, nodePose);
 			break;
@@ -933,9 +880,10 @@ extern inline int a3hierarchyPoseLERP(const a3_HierarchyPose *pose_out, const a3
 	if (pose_out && pose0 && pose1 && pose_out->nodePose && pose0->nodePose && pose1->nodePose)
 	{
 		if (flag & a3poseFlag_quat)
-			a3hierarchyPoseLerp_quat_internal(pose_out, pose0, pose1, param, nodeCount);
+			a3hierarchyPoseLERP_quaternion_internal(pose_out, pose0, pose1, param, nodeCount);
 		else
-			a3hierarchyPoseLerp_internal(pose_out, pose0, pose1, param, nodeCount);
+			a3hierarchyPoseLERP_internal(pose_out, pose0, pose1, param, nodeCount);
+
 		return nodeCount;
 	}
 	return -1;
@@ -947,9 +895,10 @@ extern inline int a3hierarchyPoseConcat(const a3_HierarchyPose *pose_out, const 
 	if (pose_out && pose0 && pose1 && pose_out->nodePose && pose0->nodePose && pose1->nodePose)
 	{
 		if (flag & a3poseFlag_quat)
-			a3hierarchyPoseConcat_quat_internal(pose_out, pose0, pose1, nodeCount);
+			a3hierarchyPoseConcat_quaternion_internal(pose_out, pose0, pose1, nodeCount);
 		else
 			a3hierarchyPoseConcat_internal(pose_out, pose0, pose1, nodeCount);
+
 		return nodeCount;
 	}
 	return -1;
@@ -961,9 +910,10 @@ extern inline int a3hierarchyPoseScale(const a3_HierarchyPose *pose_out, const a
 	if (pose_out && poseScale && pose_out->nodePose && poseScale->nodePose)
 	{
 		if (flag & a3poseFlag_quat)
-			a3hierarchyPoseScale_quat_internal(pose_out, poseScale, param, nodeCount);
+			a3hierarchyPoseScale_quaternion_internal(pose_out, poseScale, param, nodeCount);
 		else
 			a3hierarchyPoseScale_internal(pose_out, poseScale, param, nodeCount);
+
 		return nodeCount;
 	}
 	return -1;
@@ -975,7 +925,7 @@ extern inline int a3hierarchyPoseBlend(const a3_HierarchyPose *pose_out, const a
 	if (pose_out && pose0 && pose1 && pose_out->nodePose && pose0->nodePose && pose1->nodePose)
 	{
 		if (flag & a3poseFlag_quat)
-			a3hierarchyPoseBlend_quat_internal(pose_out, pose0, pose1, weight0, weight1, nodeCount);
+			a3hierarchyPoseBlend_quaternion_internal(pose_out, pose0, pose1, weight0, weight1, nodeCount);
 		else
 			a3hierarchyPoseBlend_internal(pose_out, pose0, pose1, weight0, weight1, nodeCount);
 		return nodeCount;
@@ -988,12 +938,10 @@ extern inline int a3hierarchyPoseTriangularLERP(const a3_HierarchyPose *pose_out
 {
 	if (pose_out && pose0 && pose1 && pose2 && pose_out->nodePose && pose0->nodePose && pose1->nodePose && pose2->nodePose)
 	{
-		const float param2 = 1.0f - param0 - param1;
-
 		if (flag & a3poseFlag_quat)
-			a3hierarchyPoseTriLerp_quat_internal(pose_out, pose0, pose1, pose2, param0, param1, param2, nodeCount);
+			a3hierarchyPoseTriangularLERP_quaternion_internal(pose_out, pose0, pose1, pose2, param0, param1, 1 - param0 - param1, nodeCount);
 		else
-			a3hierarchyPoseTriLerp_internal(pose_out, pose0, pose1, pose2, param0, param1, param2, nodeCount);
+			a3hierarchyPoseTriangularLERP_internal(pose_out, pose0, pose1, pose2, param0, param1, 1 - param0 - param1, nodeCount);
 		return nodeCount;
 	}
 	return -1;
