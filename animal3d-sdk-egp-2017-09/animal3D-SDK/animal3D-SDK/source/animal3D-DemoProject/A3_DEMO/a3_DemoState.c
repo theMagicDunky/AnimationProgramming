@@ -1340,6 +1340,36 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 		clipCtrl0 = demoState->ctrlIdle;
 		clipCtrl1 = demoState->ctrlCrouch;
 
+		// update both timelines
+		a3clipCtrlUpdate(clipCtrl0, (float)dt);
+		a3clipCtrlUpdate(clipCtrl1, (float)dt);
+
+		// lerping between current and next key pose
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 0,
+			poseSourceGroup->pose + clipCtrl0->frameIndex, poseSourceGroup->pose + clipCtrl0->nextIndex, clipCtrl0->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// yea yea
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 1,
+			poseSourceGroup->pose + clipCtrl1->frameIndex, poseSourceGroup->pose + clipCtrl1->nextIndex, clipCtrl1->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// B L E N D
+		// choose operation and pass inputs from previous step
+		a3hierarchyPoseConcat(poseBlendGroup->pose + 2, poseBlendGroup->pose + 0, poseBlendGroup->pose + 1, demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// concat with base
+		a3hierarchyPoseConcat(currentHierarchyState->localPose,
+			poseSourceGroup->pose, poseBlendGroup->pose + 2,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// get matricies 
+		a3hierarchyPoseConvert(currentHierarchyState->localSpace, currentHierarchyState->localPose,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// solve fk
+		a3kinematicsSolveForward(currentHierarchyState);
+
 		break;
 
 		// walk + crouch
@@ -1347,12 +1377,79 @@ void a3demo_update(a3_DemoState *demoState, double dt)
 		clipCtrl0 = demoState->ctrlWalk;
 		clipCtrl1 = demoState->ctrlCrouch;
 
+		// update both timelines
+		a3clipCtrlUpdate(clipCtrl0, (float)dt);
+		a3clipCtrlUpdate(clipCtrl1, (float)dt);
+
+		// lerping between current and next key pose
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 0,
+			poseSourceGroup->pose + clipCtrl0->frameIndex, poseSourceGroup->pose + clipCtrl0->nextIndex, clipCtrl0->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// yea yea
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 1,
+			poseSourceGroup->pose + clipCtrl1->frameIndex, poseSourceGroup->pose + clipCtrl1->nextIndex, clipCtrl1->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// B L E N D
+		// choose operation and pass inputs from previous step
+		a3hierarchyPoseConcat(poseBlendGroup->pose + 2, poseBlendGroup->pose + 0, poseBlendGroup->pose + 1, demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// concat with base
+		a3hierarchyPoseConcat(currentHierarchyState->localPose,
+			poseSourceGroup->pose, poseBlendGroup->pose + 2,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// get matricies 
+		a3hierarchyPoseConvert(currentHierarchyState->localSpace, currentHierarchyState->localPose,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// solve fk
+		a3kinematicsSolveForward(currentHierarchyState);
+
 		break;
 
 		// walk -> walk + crouch
 	case 6:
 		clipCtrl0 = demoState->ctrlWalk;
 		clipCtrl1 = demoState->ctrlCrouch;
+
+		// update both timelines
+		a3clipCtrlUpdate(clipCtrl0, (float)dt);
+		a3clipCtrlUpdate(clipCtrl1, (float)dt);
+
+		// lerping between current and next key pose
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 0,
+			poseSourceGroup->pose + clipCtrl0->frameIndex, poseSourceGroup->pose + clipCtrl0->nextIndex, clipCtrl0->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// yea yea
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 1,
+			poseSourceGroup->pose + clipCtrl1->frameIndex, poseSourceGroup->pose + clipCtrl1->nextIndex, clipCtrl1->frameParam,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// weighted average concat
+		a3hierarchyPoseBlend(poseBlendGroup->pose + 2,
+			poseSourceGroup->pose + 0, poseBlendGroup->pose + 1,
+			.5f, .75f,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		a3hierarchyPoseLERP(poseBlendGroup->pose + 3,
+			poseBlendGroup->pose + 0, poseBlendGroup->pose + 2,
+			demoState->blendBeta,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// concat with base
+		a3hierarchyPoseConcat(currentHierarchyState->localPose,
+			poseSourceGroup->pose, poseBlendGroup->pose + 3,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// get matricies 
+		a3hierarchyPoseConvert(currentHierarchyState->localSpace, currentHierarchyState->localPose,
+			demoState->skeleton->numNodes, a3poseFlag_rotate | a3poseFlag_translate);
+
+		// solve fk
+		a3kinematicsSolveForward(currentHierarchyState);
 
 		break;
 
